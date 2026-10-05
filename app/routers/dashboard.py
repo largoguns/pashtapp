@@ -15,7 +15,7 @@ router = APIRouter(dependencies=[Depends(require_user)])
 
 @router.get("/")
 def dashboard(request: Request, y: int | None = None, m: int | None = None, db: Session = Depends(get_db)):
-    year, month = resolve_month(y, m)
+    year, month = resolve_month(db, y, m)
     report = open_month(db, year, month)  # Apertura automática al visitar el mes (§4.3)
     ctx = month_context(db, year, month)
     ctx["opening_report"] = None if report.skipped else report

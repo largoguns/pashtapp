@@ -3,7 +3,6 @@ from __future__ import annotations
 
 import csv
 import io
-from datetime import date
 
 from openpyxl import Workbook
 from openpyxl.styles import Font, PatternFill
@@ -13,27 +12,30 @@ from sqlalchemy.orm import Session
 
 from app.database import Base
 from app.models import Transaction, User
-from app.services.balances import booking_date, in_month
+from app.services.balances import in_month
 
 CSV_COLUMNS = [
-    "id", "date", "settlement_date", "name", "amount", "is_income", "category", "is_fixed",
+    "id", "period", "date", "settlement_date", "name", "amount", "is_income", "category", "is_fixed",
     "is_settled", "installment_group_id", "installment_number", "installment_total", "notes",
 ]
 
 
 def transactions_csv(db: Session, year: int | None, month: int | None) -> str:
-    q = select(Transaction).order_by(booking_date, Transaction.id)
+    q = select(Transaction).order_by(
+        Transaction.period_year, Transaction.period_month, Transaction.date, Transaction.id
+    )
     if year and month:
         q = q.where(in_month(year, month))
     elif year:
-        q = q.where(booking_date >= date(year, 1, 1), booking_date < date(year + 1, 1, 1))
+        q = q.where(Transaction.period_year == year)
     buf = io.StringIO()
     buf.write("﻿")  # BOM para que Excel detecte UTF-8
     w = csv.writer(buf, delimiter=";")
     w.writerow(CSV_COLUMNS)
     for t in db.scalars(q).unique():
         w.writerow([
-            t.id, t.date.isoformat(), t.settlement_date.isoformat() if t.settlement_date else "",
+            t.id, f"{t.period_year:04d}-{t.period_month:02d}", t.date.isoformat(),
+            t.settlement_date.isoformat() if t.settlement_date else "",
             t.name, f"{t.amount:.2f}".replace(".", ","), int(t.is_income),
             t.category.name if t.category else "", int(t.is_fixed), int(t.is_settled),
             t.installment_group_id or "", t.installment_number or "", t.installment_total or "", t.notes or "",

@@ -24,6 +24,20 @@
     </form>
   </section>
 
+  <section class="card max-w-xl p-5">
+    <h2 class="font-semibold">Inicio del mes contable</h2>
+    <p class="mt-1 text-sm text-slate-400">
+      El mes empieza cuando cobras el salario, como al pasar a la hoja siguiente del Excel: el de finales de septiembre abre «Octubre».
+      Hasta que lo marques como cobrado sigues en el mes anterior. Este día sólo se usa como estimación para meses futuros y
+      para fechar el salario previsto. Pon <b>1</b> para usar meses naturales.
+    </p>
+    <form method="post" action="/settings/period" class="mt-4 flex items-end gap-3">
+      <div><label class="label" for="start-day">Día estimado de cobro</label>
+        <input id="start-day" name="start_day" type="number" min="1" max="28" class="input w-24" value="{{ start_day }}" required></div>
+      <button class="btn-primary">Guardar</button>
+    </form>
+  </section>
+
   {% elif tab == "categories" %}
   {% set cols = "grid-cols-[minmax(10rem,1fr)_9rem_4rem_9rem_3rem_3rem_7rem]" %}
   <section class="card overflow-x-auto">

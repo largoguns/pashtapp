@@ -63,6 +63,7 @@ def create(
 ):
     value = _amount(amount)
     category_id = _opt_int(category_id)
+    year, month = resolve_month(db, view_y, view_m)
     # El selector de estado añade "settled"/"pending" como variantes del gasto inmediato.
     if mode in ("settled", "pending"):
         is_settled, mode = mode == "settled", PaymentMode.NOW.value
@@ -83,9 +84,9 @@ def create(
         is_fixed=is_fixed,
         installments=max(2, min(installments, 60)) if pay_mode is PaymentMode.SPLIT else 1,
         notes=notes or None,
+        period=(year, month),  # se apunta en el mes que se está viendo, como en la hoja del Excel
     )
     db.commit()
-    year, month = resolve_month(view_y, view_m)
     msg = f"Añadido: {txs[0].name}" + (f" en {len(txs)} cuotas" if len(txs) > 1 else "")
     return render_month_fragments(request, db, year, month, toast=msg)
 
@@ -96,7 +97,7 @@ def toggle_settled(request: Request, tx_id: int, view_y: str | None = None, view
     tx = _get_tx(db, tx_id)
     set_settled(db, tx, not tx.is_settled)
     db.commit()
-    year, month = resolve_month(view_y or tx.booking_date.year, view_m or tx.booking_date.month)
+    year, month = resolve_month(db, view_y or tx.period_year, view_m or tx.period_month)
     return render_month_fragments(request, db, year, month)
 
 
@@ -119,6 +120,7 @@ def update(
     kind: str = Form("expense"),
     op_date: str = Form(...),
     settlement_date: str | None = Form(None),
+    period: str | None = Form(None),
     category_id: str | None = Form(None),
     is_fixed: bool = Form(False),
     is_settled: bool = Form(False),
@@ -134,12 +136,19 @@ def update(
     tx.amount = value if tx.is_income else -value
     tx.date = _parse_date(op_date) or tx.date
     tx.settlement_date = _parse_date(settlement_date)
+    if period:
+        try:
+            py, pm = (int(x) for x in period.split("-")[:2])
+            date(py, pm, 1)
+        except ValueError:
+            raise HTTPException(422, f"Mes contable no válido: {period}")
+        tx.period_year, tx.period_month = py, pm
     tx.category_id = _opt_int(category_id)
     tx.is_fixed = is_fixed
     tx.notes = notes or None
     set_settled(db, tx, is_settled)
     db.commit()
-    year, month = resolve_month(view_y, view_m)
+    year, month = resolve_month(db, view_y, view_m)
     return render_month_fragments(request, db, year, month, toast="Movimiento actualizado")
 
 
@@ -154,5 +163,5 @@ def remove(request: Request, tx_id: int, scope: str = "one", view_y: str | None 
         db.delete(tx)
         msg = "Movimiento eliminado"
     db.commit()
-    year, month = resolve_month(view_y, view_m)
+    year, month = resolve_month(db, view_y, view_m)
     return render_month_fragments(request, db, year, month, toast=msg)

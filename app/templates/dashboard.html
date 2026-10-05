@@ -6,10 +6,25 @@
 {% macro month_nav(cls="") %}
 <div class="flex items-center gap-1 {{ cls }}">
   <a href="/?y={{ prev[0] }}&m={{ prev[1] }}" class="rounded-lg px-2 py-1 text-lg text-slate-400 hover:bg-slate-800 hover:text-white" aria-label="Mes anterior">‹</a>
-  <span class="min-w-[9rem] text-center font-semibold">{{ MONTH_NAMES[month - 1] }} {{ year }}</span>
+  <span class="min-w-[9rem] text-center leading-tight">
+    <span class="block font-semibold">{{ MONTH_NAMES[month - 1] }} {{ year }}</span>
+    {% if period_start.day != 1 or period_end.month != month %}
+    <span class="block text-[10px] text-slate-500" title="Mes contable: del cobro del salario al siguiente">{{ period_start.strftime('%d/%m') }} – {{ period_end.strftime('%d/%m') }}</span>
+    {% endif %}
+  </span>
   <a href="/?y={{ next[0] }}&m={{ next[1] }}" class="rounded-lg px-2 py-1 text-lg text-slate-400 hover:bg-slate-800 hover:text-white" aria-label="Mes siguiente">›</a>
   {% if not is_current_month %}<a href="/" class="ml-1 rounded-lg px-2 py-1 text-xs text-emerald-400 hover:bg-slate-800">Hoy</a>{% endif %}
 </div>
+{% endmacro %}
+
+{% macro salary_banner(cls="") %}
+{% if next_salary_due %}
+<a href="/?y={{ next[0] }}&m={{ next[1] }}" class="flex items-center gap-3 rounded-xl border border-emerald-500/30 bg-emerald-500/10 px-4 py-2.5 text-sm text-emerald-200 {{ cls }}">
+  <span class="text-lg">💶</span>
+  <span class="flex-1">¿Has cobrado ya? Pasa a <b>{{ MONTH_NAMES[next[1] - 1] }}</b> y marca el salario como cobrado para empezar el mes.</span>
+  <span aria-hidden="true">›</span>
+</a>
+{% endif %}
 {% endmacro %}
 
 {% block header_actions %}
@@ -44,7 +59,8 @@
   {% include "partials/kpis.html" %}
 </div>
 
-<!-- Presupuestos (compartido) -->
+<!-- Aviso de cobro y presupuestos (compartido) -->
+{% if next_salary_due %}<div class="px-3 pt-4 md:px-0 md:pt-6">{{ salary_banner() }}</div>{% endif %}
 <div class="px-3 pt-4 md:px-0 md:pt-6">{% include "partials/budgets.html" %}</div>
 
 <div class="md:hidden">

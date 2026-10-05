@@ -76,7 +76,7 @@ def quick_expense(payload: QuickExpenseIn, db: Session = Depends(get_db)):
 
 @router.get("/summary")
 def summary(year: int | None = None, month: int | None = None, db: Session = Depends(get_db)):
-    y, m = resolve_month(year, month)
+    y, m = resolve_month(db, year, month)
     return asdict(month_summary(db, y, m))
 
 

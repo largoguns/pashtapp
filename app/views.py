@@ -11,6 +11,7 @@ from app.models import Category, Loan
 from app.services.analytics import budget_statuses, category_matrix, donut_data, utility_series
 from app.services.balances import month_summary, month_transactions_query
 from app.services.loans import loan_status
+from app.services.periods import current_period, estimated_start, get_start_day, period_bounds
 from app.templating import templates
 from app.utils import shift_month, today
 
@@ -21,13 +22,12 @@ def _as_int(v: int | str | None) -> int | None:
     return int(v) if v and str(v).strip().isdigit() else None
 
 
-def resolve_month(y: int | str | None, m: int | str | None) -> tuple[int, int]:
-    """Año/mes visibles; valores ausentes o inválidos caen en el mes actual."""
-    t = today()
+def resolve_month(db: Session, y: int | str | None, m: int | str | None) -> tuple[int, int]:
+    """Mes contable visible; valores ausentes o inválidos caen en el mes contable actual."""
     y, m = _as_int(y), _as_int(m)
-    year = y if y and 1900 < y < 3000 else t.year
-    month = m if m and 1 <= m <= 12 else t.month
-    return year, month
+    if y and 1900 < y < 3000 and m and 1 <= m <= 12:
+        return y, m
+    return current_period(db)
 
 
 def categories(db: Session) -> list[Category]:
@@ -39,13 +39,18 @@ def month_context(db: Session, year: int, month: int, *, full: bool = True) -> d
     py, pm = shift_month(year, month, -1)
     ny, nm = shift_month(year, month, 1)
     t = today()
+    current = current_period(db)
+    start, end = period_bounds(db, year, month)
     ctx = {
         "year": year,
         "month": month,
         "prev": (py, pm),
         "next": (ny, nm),
-        "is_current_month": (t.year, t.month) == (year, month),
-        "default_date": t if (t.year, t.month) == (year, month) else date(year, month, 1),
+        "period_start": start,
+        "period_end": end,
+        "is_current_month": current == (year, month),
+        # Fecha por defecto del alta: hoy en el mes en curso; si no, el día 1 (o el inicio del periodo).
+        "default_date": t if current == (year, month) else (date(year, month, 1) if start <= date(year, month, 1) <= end else start),
         "summary": month_summary(db, year, month),
         "incomes": [tx for tx in txs if tx.is_income],
         "fixed": [tx for tx in txs if tx.is_fixed and not tx.is_income],
@@ -55,6 +60,9 @@ def month_context(db: Session, year: int, month: int, *, full: bool = True) -> d
         "categories": categories(db),
         "donut": donut_data(db, year, month),
     }
+    # ¿Ya toca cobrar el salario del mes siguiente? Aviso para «pasar de hoja», como en el Excel.
+    start_day = get_start_day(db)
+    ctx["next_salary_due"] = ctx["is_current_month"] and start_day > 1 and t >= estimated_start(ny, nm, start_day)
     if full:
         loans = db.scalars(select(Loan).where(Loan.active.is_(True)).order_by(Loan.name)).unique().all()
         ctx["loans"] = [(loan, loan_status(loan)) for loan in loans]

@@ -7,7 +7,7 @@
     <span class="min-w-0 flex-1">
       <span class="block truncate font-medium {% if tx.is_settled %}text-slate-300{% endif %}">{{ tx.name }}</span>
       <span class="block truncate text-xs text-slate-500">
-        {{ tx.booking_date.strftime('%d/%m') }}{% if tx.category %} · {{ tx.category.name }}{% endif %}
+        {{ tx.date.strftime('%d/%m') }}{% if tx.settlement_date and tx.settlement_date != tx.date %} → {{ tx.settlement_date.strftime('%d/%m') }}{% endif %}{% if tx.category %} · {{ tx.category.name }}{% endif %}
         {% if tx.installment_total %} · {{ tx.installment_number }}/{{ tx.installment_total }}{% elif tx.is_fixed %} · Fijo{% endif %}
       </span>
     </span>

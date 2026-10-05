@@ -7,8 +7,8 @@ from sqlalchemy import and_, select
 from sqlalchemy.orm import Session
 
 from app.models import Loan, LoanInstallment, MonthOpening, RecurringTemplate, Transaction
+from app.services.periods import estimated_range, get_start_day, template_date
 from app.services.transactions import get_or_create_category
-from app.utils import clamp_day, month_start, next_month_start
 
 LOAN_CATEGORY = "Préstamos"
 
@@ -49,28 +49,32 @@ def open_month(db: Session, year: int, month: int, force: bool = False) -> Openi
         report.skipped = True
         return report
 
-    start, end = month_start(year, month), next_month_start(year, month)
+    start_day = get_start_day(db)
+    start, end = estimated_range(year, month, start_day)
+    in_period = (Transaction.period_year == year, Transaction.period_month == month)
 
     templates = db.scalars(select(RecurringTemplate).where(RecurringTemplate.active.is_(True))).all()
     for tpl in templates:
         exists = db.scalar(
             select(Transaction.id).where(
-                Transaction.template_id == tpl.id, Transaction.date >= start, Transaction.date < end
+                Transaction.template_id == tpl.id, *in_period
             )
         )
         if exists:
             continue
-        d = clamp_day(year, month, tpl.day_of_month or 1)
+        d = template_date(year, month, tpl.day_of_month or 1, start_day)
         amount = abs(tpl.default_amount)
         db.add(
             Transaction(
+                period_year=year,
+                period_month=month,
                 date=d,
                 settlement_date=d,
                 name=tpl.name,
                 amount=amount if tpl.is_income else -amount,
                 is_income=tpl.is_income,
                 category_id=tpl.category_id,
-                is_fixed=True,
+                is_fixed=not tpl.is_income,  # el salario es una previsión: su importe varía
                 is_settled=False,
                 template_id=tpl.id,
             )
@@ -89,6 +93,8 @@ def open_month(db: Session, year: int, month: int, force: bool = False) -> Openi
             loan_cat = loan_cat or get_or_create_category(db, LOAN_CATEGORY, icon="bank", is_fixed_default=True)
             db.add(
                 Transaction(
+                    period_year=year,
+                    period_month=month,
                     date=inst.due_date,
                     settlement_date=inst.due_date,
                     name=f"Préstamo {loan.name}",

@@ -6,12 +6,12 @@
     <input type="checkbox" class="tick" aria-label="Conciliado" {% if tx.is_settled %}checked{% endif %}
            hx-patch="/transactions/{{ tx.id }}/toggle-settled?{{ qs }}" hx-trigger="change" hx-swap="none">
   </td>
-  <td class="w-16 whitespace-nowrap text-slate-400">{{ tx.booking_date.strftime('%d/%m') }}</td>
+  <td class="w-16 whitespace-nowrap text-slate-400">{{ tx.date.strftime('%d/%m') }}</td>
   <td class="max-w-0">
     <div class="truncate font-medium {% if tx.is_settled %}text-slate-300{% endif %}">{{ tx.name }}</div>
     {% if tx.notes or tx.date != tx.booking_date %}
     <div class="truncate text-xs text-slate-500">
-      {% if tx.date != tx.booking_date %}Op. {{ tx.date.strftime('%d/%m') }} · {% endif %}{{ tx.notes or '' }}
+      {% if tx.date != tx.booking_date %}Cargo {{ tx.booking_date.strftime('%d/%m') }} · {% endif %}{{ tx.notes or '' }}
     </div>
     {% endif %}
   </td>

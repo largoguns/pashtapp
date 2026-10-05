@@ -53,3 +53,20 @@ def init_db() -> None:
     from app import models  # noqa: F401  (registra las tablas)
 
     Base.metadata.create_all(engine)
+    _upgrade_schema()
+
+
+def _upgrade_schema() -> None:
+    """Migraciones ligeras para bases de datos creadas con versiones anteriores."""
+    with engine.begin() as conn:
+        cols = {row[1] for row in conn.exec_driver_sql("PRAGMA table_info(transactions)")}
+        if "period_year" not in cols:
+            # Mes contable inicial = mes natural de la fecha de operación.
+            conn.exec_driver_sql("ALTER TABLE transactions ADD COLUMN period_year INTEGER")
+            conn.exec_driver_sql("ALTER TABLE transactions ADD COLUMN period_month INTEGER")
+            conn.exec_driver_sql(
+                "UPDATE transactions SET period_year = CAST(strftime('%Y', date) AS INTEGER), "
+                "period_month = CAST(strftime('%m', date) AS INTEGER)"
+            )
+            conn.exec_driver_sql("CREATE INDEX IF NOT EXISTS ix_transactions_period_year ON transactions (period_year)")
+            conn.exec_driver_sql("CREATE INDEX IF NOT EXISTS ix_transactions_period_month ON transactions (period_month)")

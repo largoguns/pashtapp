@@ -9,7 +9,8 @@ from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
 from app.models import Category, LoanInstallment, Transaction
-from app.utils import add_months, today
+from app.services.periods import period_of
+from app.utils import add_months, shift_month, today
 
 
 class PaymentMode(str, Enum):
@@ -45,10 +46,15 @@ def create_movement(
     is_fixed: bool = False,
     installments: int = 1,
     notes: str | None = None,
+    period: tuple[int, int] | None = None,
 ) -> list[Transaction]:
-    """Crea uno o varios movimientos. ``amount`` se pasa en positivo; el signo lo da ``is_income``."""
+    """Crea uno o varios movimientos. ``amount`` se pasa en positivo; el signo lo da ``is_income``.
+
+    ``period`` es el mes contable (año, mes); si no se indica se deduce de la fecha.
+    """
     mode = PaymentMode(mode)
     op_date = op_date or today()
+    py, pm = period or period_of(db, op_date)
     total = abs(float(amount))
     sign = 1 if is_income else -1
     name = name.strip() or "Sin concepto"
@@ -63,10 +69,13 @@ def create_movement(
             # La última cuota absorbe el redondeo para que la suma sea exacta.
             part = share if i < n else round(total - share * (n - 1), 2)
             d = add_months(op_date, i)
+            iy, im = shift_month(py, pm, i)
             note = f"[Cuota {i}/{n}]" + (f" {notes}" if notes else "")
             txs.append(
                 Transaction(
                     **base,
+                    period_year=iy,
+                    period_month=im,
                     date=d,
                     settlement_date=d,
                     amount=sign * part,
@@ -89,7 +98,8 @@ def create_movement(
         settlement, settled = op_date, bool(is_settled)
 
     tx = Transaction(
-        **base, date=op_date, settlement_date=settlement, amount=sign * total, is_settled=settled, notes=notes
+        **base, period_year=py, period_month=pm, date=op_date, settlement_date=settlement,
+        amount=sign * total, is_settled=settled, notes=notes,
     )
     db.add(tx)
     db.flush()

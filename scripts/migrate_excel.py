@@ -15,6 +15,9 @@ Estructura esperada del libro (anclada en etiquetas, no en filas fijas):
   * «Gastos por Categoría»: columna A con las categorías (más la lista de validación de las hojas).
   * «Gastos Electricos»: A mes, B importe (fórmula a la fila «Electricidad» de cada mes).
   * «Coche», «Grueso», «Placas»: Nº de Cuota, Vencimiento, Cuota, Amortización, Intereses, Pendiente.
+
+Cada hoja mensual es un mes contable: el salario que la abre se fecha el día de cobro
+(``--start-day``, 27 por defecto) del mes anterior.
 """
 from __future__ import annotations
 
@@ -311,7 +314,7 @@ def inspect(path: Path, max_rows: int = 40) -> None:
 
 # ----------------------------------------------------------------------------- escritura
 
-def write(res: Result, *, reset: bool, templates: bool, today: date) -> dict:
+def write(res: Result, *, reset: bool, templates: bool, today: date, start_day: int) -> dict:
     from sqlalchemy import delete, func, select
 
     from app.database import SessionLocal, init_db
@@ -320,6 +323,7 @@ def write(res: Result, *, reset: bool, templates: bool, today: date) -> dict:
     from app.services.balances import initial_balance
     from app.services.months import mark_opened
     from app.services.settings_store import set_opening_balance
+    from app.services.periods import estimated_start, set_start_day
     from app.utils import clamp_day
 
     init_db()
@@ -369,10 +373,13 @@ def write(res: Result, *, reset: bool, templates: bool, today: date) -> dict:
         for t in res.transactions:
             loan = is_loan_payment(t.name, res.loans) if t.kind == "fixed" else None
             day = loans_due_day.get(norm(loan.name), 1) if loan else 1
-            d = clamp_day(t.year, t.month, day)
+            # El libro no tiene fechas: el salario abre el mes (día de cobro del mes anterior),
+            # las cuotas van a su vencimiento y el resto al día 1 de la hoja.
+            d = estimated_start(t.year, t.month, start_day) if t.kind == "income" else clamp_day(t.year, t.month, day)
             tx = Transaction(
+                period_year=t.year, period_month=t.month,  # la hoja del Excel es el mes contable
                 date=d, settlement_date=d, name=t.name, amount=round(t.amount, 2), is_income=t.kind == "income",
-                category_id=(loan_cat if loan else category(t.category)).id, is_fixed=t.kind != "variable",
+                category_id=(loan_cat if loan else category(t.category)).id, is_fixed=t.kind == "fixed",
                 is_settled=t.settled, notes=t.notes,
             )
             if loan:
@@ -390,6 +397,7 @@ def write(res: Result, *, reset: bool, templates: bool, today: date) -> dict:
             mark_opened(db, res.year, m)  # sus fijos ya están importados: no regenerar
 
         set_opening_balance(db, res.opening or 0.0, res.year, min(res.months) if res.months else 1)
+        set_start_day(db, start_day)
 
         # Plantillas de fijos para los meses siguientes, a partir del último mes importado.
         if templates and res.months and not db.scalar(select(func.count(RecurringTemplate.id))):
@@ -398,7 +406,8 @@ def write(res: Result, *, reset: bool, templates: bool, today: date) -> dict:
                 if t.month != last or t.kind == "variable" or is_loan_payment(t.name, res.loans):
                     continue
                 db.add(RecurringTemplate(name=t.name, default_amount=abs(t.amount), category_id=category(t.category).id,
-                                         day_of_month=1, is_income=t.kind == "income", active=True))
+                                         day_of_month=start_day if t.kind == "income" else 1,
+                                         is_income=t.kind == "income", active=True))
         db.commit()
 
         # Validación: el arrastre calculado frente al «Resto mes anterior» del libro.
@@ -420,6 +429,8 @@ def main() -> None:
     ap.add_argument("--dry-run", action="store_true", help="Analiza y muestra el resumen sin escribir")
     ap.add_argument("--reset", action="store_true", help="Vacía categorías, movimientos, préstamos, plantillas y luz")
     ap.add_argument("--no-templates", action="store_true", help="No crear plantillas de fijos")
+    ap.add_argument("--start-day", type=int, default=27,
+                    help="Día estimado de cobro del salario, que abre el mes contable (1 = meses naturales)")
     args = ap.parse_args()
 
     if not args.xlsx.exists():
@@ -438,7 +449,7 @@ def main() -> None:
     summary(res)
     if args.dry_run:
         return
-    checks = write(res, reset=args.reset, templates=not args.no_templates, today=today)
+    checks = write(res, reset=args.reset, templates=not args.no_templates, today=today, start_day=args.start_day)
     print("✔ Migración completada.")
     if checks:
         print("\nValidación del arrastre de saldo (PashtAPP vs «Resto mes anterior» del libro):")

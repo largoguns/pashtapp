@@ -25,7 +25,7 @@ def test_quick_add_and_toggle(client, db):
                                            "view_y": "2026", "view_m": "10", "op_date": "2026-10-05"})
     assert r.status_code == 200 and 'id="mobile-header"' in r.text and "hx-swap-oob" in r.text
     tx = db.query(Transaction).one()
-    assert (tx.amount, tx.name, tx.is_settled) == (-12.5, "Comida", False)
+    assert (tx.amount, tx.name, tx.is_settled, tx.period) == (-12.5, "Comida", False, (2026, 10))
     r = client.patch(f"/transactions/{tx.id}/toggle-settled?view_y=2026&view_m=10")
     assert r.status_code == 200
     db.expire_all()
@@ -64,7 +64,7 @@ def test_exports_and_backup(client, db):
     from openpyxl import load_workbook
     import io
 
-    db.add(Transaction(date=date(2026, 3, 1), name="Algo", amount=-5)); db.commit()
+    db.add(Transaction(date=date(2026, 3, 1), period_year=2026, period_month=3, name="Algo", amount=-5)); db.commit()
     r = client.get("/export/transactions.csv?year=2026&month=3")
     assert r.status_code == 200 and "Algo" in r.text and "-5,00" in r.text
     r = client.get("/export/full-backup.xlsx")
@@ -93,3 +93,33 @@ def test_password_hash_accepts_base64(monkeypatch):
     # Un valor que no es hash ni base64 de hash falla al arrancar, no en el login.
     with pytest.raises(RuntimeError):
         _decode_password_hash("no-es-un-hash")
+
+
+def test_new_movement_goes_to_viewed_month_and_period_is_editable(client, db):
+    client.post("/transactions", data={"amount": "5", "mode": "settled", "view_y": "2026", "view_m": "11",
+                                       "op_date": "2026-10-29"})
+    tx = db.query(Transaction).one()
+    assert tx.period == (2026, 11) and tx.date == date(2026, 10, 29)
+    r = client.post(f"/transactions/{tx.id}", data={"name": "x", "amount": "5", "op_date": "2026-10-29",
+                                                    "period": "2026-10", "view_y": "2026", "view_m": "10"})
+    assert r.status_code == 200
+    db.expire_all()
+    assert db.get(Transaction, tx.id).period == (2026, 10)
+
+
+def test_schema_upgrade_backfills_period(tmp_path, monkeypatch):
+    import sqlite3
+
+    from sqlalchemy import create_engine
+
+    import app.database as database
+
+    path = tmp_path / "old.db"
+    con = sqlite3.connect(path)
+    con.execute("CREATE TABLE transactions (id INTEGER PRIMARY KEY, date DATE NOT NULL, name TEXT, amount REAL)")
+    con.execute("INSERT INTO transactions (date, name, amount) VALUES ('2026-03-15', 'x', -1)")
+    con.commit(); con.close()
+    monkeypatch.setattr(database, "engine", create_engine(f"sqlite:///{path}"))
+    database._upgrade_schema()
+    con = sqlite3.connect(path)
+    assert con.execute("SELECT period_year, period_month FROM transactions").fetchone() == (2026, 3)

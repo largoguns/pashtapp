@@ -14,6 +14,7 @@ from app.deps import require_user
 from app.models import ApiKey, Category, RecurringTemplate, Transaction, UtilityReading
 from app.services.auth import create_api_key
 from app.services.backup import list_backups, run_backup
+from app.services.periods import get_start_day, set_start_day
 from app.services.settings_store import get_opening_balance, set_opening_balance
 from app.templating import templates
 from app.utils import parse_amount, today
@@ -46,6 +47,7 @@ def settings_page(request: Request, tab: str = "general", msg: str | None = None
         "msg": msg,
         "new_key": new_key,
         "opening": get_opening_balance(db),
+        "start_day": get_start_day(db),
         "categories": cats,
         "usage": usage,
         "templates_list": db.scalars(
@@ -72,6 +74,15 @@ def save_opening(amount: str = Form(...), year: int = Form(...), month: int = Fo
     set_opening_balance(db, value, year, month)
     db.commit()
     return _back("general", "Saldo inicial guardado")
+
+
+@router.post("/settings/period")
+def save_period(start_day: int = Form(...), db: Session = Depends(get_db)):
+    if not 1 <= start_day <= 28:
+        raise HTTPException(422, "El día debe estar entre 1 y 28")
+    set_start_day(db, start_day)
+    db.commit()
+    return _back("general", "Inicio del mes contable guardado")
 
 
 # --- Categorías ---------------------------------------------------------------

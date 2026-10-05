@@ -3,11 +3,11 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 
-from sqlalchemy import extract, func, select
+from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
 from app.models import Category, Transaction, UtilityReading
-from app.services.balances import booking_date, in_month
+from app.services.balances import in_month
 from app.utils import MONTH_SHORT
 
 DONUT_MAX = 8
@@ -73,12 +73,10 @@ def donut_data(db: Session, year: int, month: int) -> dict:
 
 def category_matrix(db: Session, year: int) -> dict:
     """Matriz categorías × meses del año (gasto en positivo)."""
-    y = extract("year", booking_date)
-    m = extract("month", booking_date)
     rows = db.execute(
-        select(Transaction.category_id, m, func.sum(Transaction.amount))
-        .where(y == year, Transaction.is_income.is_(False))
-        .group_by(Transaction.category_id, m)
+        select(Transaction.category_id, Transaction.period_month, func.sum(Transaction.amount))
+        .where(Transaction.period_year == year, Transaction.is_income.is_(False))
+        .group_by(Transaction.category_id, Transaction.period_month)
     ).all()
     cats = {c.id: c for c in db.scalars(select(Category)).all()}
     data: dict[int | None, list[float]] = {}

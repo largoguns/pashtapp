@@ -28,6 +28,11 @@
       <input id="e-sdate" name="settlement_date" type="date" class="input" value="{{ tx.settlement_date.isoformat() if tx.settlement_date else '' }}">
     </div>
     <div class="col-span-2">
+      <label class="label" for="e-period">Mes contable</label>
+      <input id="e-period" name="period" type="month" class="input" value="{{ '%04d-%02d' | format(tx.period_year, tx.period_month) }}" required>
+      <p class="mt-1 text-[11px] text-slate-500">La hoja en la que cuenta, independientemente de la fecha (el mes empieza al cobrar el salario).</p>
+    </div>
+    <div class="col-span-2">
       <label class="label" for="e-cat">Categoría</label>
       <select id="e-cat" name="category_id" class="input">
         <option value="">— Sin categoría —</option>

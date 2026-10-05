@@ -37,16 +37,16 @@ def test_balances_and_carry_over(db):
     create_movement(db, amount=2000, name="Nómina", op_date=date(2026, 1, 1), is_income=True, is_settled=True)
     create_movement(db, amount=500, name="Hipoteca", op_date=date(2026, 1, 2), is_fixed=True, is_settled=True)
     create_movement(db, amount=100, name="Super", op_date=date(2026, 1, 5), is_settled=False)
-    # Diferido a febrero: no cuenta en enero.
-    create_movement(db, amount=50, name="Tarjeta", op_date=date(2026, 1, 20), mode=PaymentMode.NEXT_MONTH)
+    # Cargo diferido a febrero: es un gasto de enero (mes en que se hizo), pendiente de cargo.
+    [card] = create_movement(db, amount=50, name="Tarjeta", op_date=date(2026, 1, 20), mode=PaymentMode.NEXT_MONTH)
     db.commit()
+    assert card.period == (2026, 1) and card.settlement_date == date(2026, 2, 1)
     jan = month_summary(db, 2026, 1)
-    assert (jan.initial, jan.current, jan.projected) == (1000, 2500, 2400)
-    assert jan.fixed_paid == 500 and jan.variable_pending == 100
+    assert (jan.initial, jan.current, jan.projected) == (1000, 2500, 2350)
+    assert jan.fixed_paid == 500 and jan.variable_pending == 150
     # Arrastre efectivo: sólo lo conciliado.
     assert initial_balance(db, 2026, 2) == 2500
-    feb = month_summary(db, 2026, 2)
-    assert feb.variable_pending == 50 and feb.projected == 2450
+    assert month_summary(db, 2026, 2).variable_pending == 0
     # Meses anteriores al saldo configurado se calculan hacia atrás.
     assert initial_balance(db, 2025, 12) == 1000
 
@@ -57,7 +57,8 @@ def test_refund_nets_category_spend(db):
     cat = Category(name="Regalos", monthly_budget_limit=100)
     db.add(cat); db.flush()
     create_movement(db, amount=80, name="Regalo", category_id=cat.id, op_date=date(2026, 4, 2))
-    db.add(Transaction(date=date(2026, 4, 3), name="Devolución", amount=30, category_id=cat.id))
+    db.add(Transaction(date=date(2026, 4, 3), period_year=2026, period_month=4, name="Devolución", amount=30,
+                       category_id=cat.id))
     db.commit()
     assert expenses_by_category(db, 2026, 4)[cat.id] == 50
 
@@ -129,3 +130,69 @@ def test_prepayment_strategies(db):
 def test_sms_parser(text, amount, category):
     parsed = parse_bank_text(text)
     assert parsed.amount == amount and parsed.category == category
+
+
+# --------------------------------------------------------------------------- meses contables
+
+def _salary(db, period, d, settled):
+    return create_movement(db, amount=2900, name="Salario", op_date=d, is_income=True, is_settled=settled,
+                           period=period)[0]
+
+
+def test_period_starts_when_salary_is_collected(db):
+    from app.services.periods import period_bounds, period_of, set_start_day
+
+    set_start_day(db, 27)
+    _salary(db, (2026, 10), date(2026, 9, 28), settled=True)
+    db.commit()
+    # Cobrado el 28/09: lo gastado desde ese día es de Octubre, aunque se cargue en octubre.
+    assert period_of(db, date(2026, 9, 27), ref=date(2026, 10, 5)) == (2026, 9)
+    assert period_of(db, date(2026, 9, 30), ref=date(2026, 10, 5)) == (2026, 10)
+    assert period_bounds(db, 2026, 10)[0] == date(2026, 9, 28)
+    [tx] = create_movement(db, amount=20, name="Cena", op_date=date(2026, 9, 30), mode=PaymentMode.NEXT_MONTH)
+    assert tx.period == (2026, 10) and tx.settlement_date == date(2026, 10, 1)
+
+
+def test_late_salary_keeps_previous_month_open(db):
+    from app.services.periods import period_of, set_start_day
+
+    set_start_day(db, 27)
+    _salary(db, (2026, 11), date(2026, 10, 27), settled=False)  # previsto, aún sin cobrar
+    db.commit()
+    # Hoy 28/10 y el salario no ha llegado: seguimos en Octubre, como sin cambiar de hoja.
+    assert period_of(db, date(2026, 10, 28), ref=date(2026, 10, 28)) == (2026, 10)
+    # Para fechas futuras se usa la estimación del día 27.
+    assert period_of(db, date(2026, 11, 27), ref=date(2026, 10, 28)) == (2026, 12)
+
+
+def test_carry_over_follows_accounting_period_not_date(db):
+    from app.services.periods import set_start_day
+
+    set_start_day(db, 27)
+    set_opening_balance(db, 100, 2026, 9)
+    _salary(db, (2026, 10), date(2026, 9, 28), settled=True)
+    create_movement(db, amount=50, name="Gasto", op_date=date(2026, 9, 29), is_settled=True, period=(2026, 10))
+    db.commit()
+    assert month_summary(db, 2026, 9).current == 100        # nada de Octubre cuenta en Septiembre
+    assert month_summary(db, 2026, 10).current == 2950
+    assert initial_balance(db, 2026, 11) == 2950
+
+
+def test_templates_dated_inside_period(db):
+    from app.services.periods import set_start_day
+
+    set_start_day(db, 27)
+    db.add(RecurringTemplate(name="Salario", default_amount=2900, day_of_month=28, is_income=True))
+    db.add(RecurringTemplate(name="Hipoteca", default_amount=400, day_of_month=1))
+    db.commit()
+    open_month(db, 2026, 11)
+    txs = {t.name: t for t in db.query(Transaction).all()}
+    assert txs["Salario"].date == date(2026, 10, 28) and txs["Salario"].period == (2026, 11)
+    assert not txs["Salario"].is_fixed and not txs["Salario"].is_settled
+    assert txs["Hipoteca"].date == date(2026, 11, 1) and txs["Hipoteca"].period == (2026, 11)
+
+
+def test_split_installments_advance_period(db):
+    txs = create_movement(db, amount=90, name="Sofá", op_date=date(2026, 9, 30), mode=PaymentMode.SPLIT,
+                          installments=3, period=(2026, 10))
+    assert [t.period for t in txs] == [(2026, 11), (2026, 12), (2027, 1)]

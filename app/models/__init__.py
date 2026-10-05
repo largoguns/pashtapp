@@ -5,6 +5,9 @@ Además de las tablas de la especificación se añaden:
   * ``month_openings``: meses ya abiertos (§4.3), para no regenerar fijos borrados a mano.
   * ``transactions.template_id`` / ``transactions.loan_installment_id``: enlazan los
     movimientos generados en la apertura de mes con su origen.
+  * ``transactions.period_year`` / ``period_month``: mes contable al que pertenece el
+    movimiento (como la hoja del Excel en la que se apuntaba). Es independiente de la
+    fecha: el mes empieza al cobrar el salario, no el día 1.
 """
 from __future__ import annotations
 
@@ -66,6 +69,8 @@ class Transaction(Base):
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
     date: Mapped[date] = mapped_column(Date, nullable=False, index=True)
+    period_year: Mapped[int] = mapped_column(Integer, nullable=False, index=True)
+    period_month: Mapped[int] = mapped_column(Integer, nullable=False, index=True)
     settlement_date: Mapped[date | None] = mapped_column(Date, nullable=True, index=True)
     name: Mapped[str] = mapped_column(Text, nullable=False)
     amount: Mapped[float] = mapped_column(Float, nullable=False)  # + ingreso / - gasto
@@ -89,8 +94,12 @@ class Transaction(Base):
 
     @property
     def booking_date(self) -> date:
-        """Fecha que determina el mes contable: la de cargo bancario si existe."""
+        """Fecha real de cargo en el banco (o la de operación si no hay)."""
         return self.settlement_date or self.date
+
+    @property
+    def period(self) -> tuple[int, int]:
+        return self.period_year, self.period_month
 
 
 class Loan(Base):

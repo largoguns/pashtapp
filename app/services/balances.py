@@ -1,39 +1,34 @@
 """Cálculo de saldos mensuales (DEFINITION.md §4.1).
 
-El mes contable de un movimiento es el de su ``settlement_date`` (fecha real de cargo)
-y, si no tiene, el de ``date``. Así un gasto "diferido al mes siguiente" cuenta en el
-mes en que el banco lo cobra.
+Cada movimiento cuenta en su mes contable (``period_year``/``period_month``), no en el de su
+fecha: el mes empieza al cobrar el salario. La fecha de cargo sólo decide si ya está en la
+cuenta (conciliado) o sigue pendiente.
 """
 from __future__ import annotations
 
 from dataclasses import dataclass
-from datetime import date
 
 from sqlalchemy import Select, and_, case, func, select
 from sqlalchemy.orm import Session
 
 from app.models import Transaction
 from app.services.settings_store import get_opening_balance
-from app.utils import month_start, next_month_start
 
-booking_date = func.coalesce(Transaction.settlement_date, Transaction.date)
+period_index = Transaction.period_year * 12 + (Transaction.period_month - 1)
 
 
 def in_month(year: int, month: int):
-    return and_(booking_date >= month_start(year, month), booking_date < next_month_start(year, month))
+    """Filtro del mes contable."""
+    return and_(Transaction.period_year == year, Transaction.period_month == month)
 
 
 def month_transactions_query(year: int, month: int) -> Select:
-    return (
-        select(Transaction)
-        .where(in_month(year, month))
-        .order_by(booking_date, Transaction.id)
-    )
+    return select(Transaction).where(in_month(year, month)).order_by(Transaction.date, Transaction.id)
 
 
-def _settled_sum(db: Session, start: date, end: date) -> float:
+def _settled_sum(db: Session, start_key: int, end_key: int) -> float:
     q = select(func.coalesce(func.sum(Transaction.amount), 0.0)).where(
-        Transaction.is_settled.is_(True), booking_date >= start, booking_date < end
+        Transaction.is_settled.is_(True), period_index >= start_key, period_index < end_key
     )
     return float(db.scalar(q) or 0.0)
 
@@ -41,11 +36,11 @@ def _settled_sum(db: Session, start: date, end: date) -> float:
 def initial_balance(db: Session, year: int, month: int) -> float:
     """Saldo de apertura: saldo configurado + arrastre efectivo de los meses previos."""
     opening = get_opening_balance(db)
-    origin = month_start(opening.year, opening.month)
-    target = month_start(year, month)
+    origin = opening.year * 12 + opening.month - 1
+    target = year * 12 + month - 1
     if target >= origin:
-        return round(opening.amount + _settled_sum(db, origin, target), 2)
-    return round(opening.amount - _settled_sum(db, target, origin), 2)
+        return round(opening.amount + _settled_sum(db, origin, target), 2) + 0.0
+    return round(opening.amount - _settled_sum(db, target, origin), 2) + 0.0
 
 
 @dataclass
