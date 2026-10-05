@@ -23,7 +23,7 @@ PWA para las finanzas de casa que sustituye al libro de cálculo *Pashta*. Está
 cp .env.example .env
 python -c "import secrets; print(secrets.token_urlsafe(64))"   # → SECRET_KEY
 python scripts/hash_password.py                                  # → ADMIN_PASSWORD_HASH
-docker compose up -d --build                                     # http://<servidor>:8080
+docker compose up -d --build                                     # http://<servidor>:8090
 ```
 
 En **Portainer** (Stacks → *Environment variables*) basta con definir `SECRET_KEY` y `ADMIN_PASSWORD_HASH`, y opcionalmente `ADMIN_USERNAME` y `COOKIE_SECURE`. Usa el valor **base64** que imprime `scripts/hash_password.py`: no contiene `$`, así que la interpolación de Compose sobre `stack.env` no lo altera. Un hash bcrypt en claro (`$2b$12$…`) sí se corrompería: Compose interpreta `$e0M2…` como una variable vacía. También se acepta el hash en claro en un `.env` local entre comillas simples.
@@ -84,10 +84,10 @@ Crea un token en *Ajustes → API / Atajos* o con `python scripts/create_api_key
 
 ```bash
 # JSON estructurado
-curl -X POST http://servidor:8080/api/v1/quick-expense -H "X-API-Key: pk_…" -H "Content-Type: application/json" \
+curl -X POST http://servidor:8090/api/v1/quick-expense -H "X-API-Key: pk_…" -H "Content-Type: application/json" \
   -d '{"amount": 14.50, "concept": "Mercadona", "category": "Comida", "is_settled": false}'
 # Texto de SMS: se extraen el importe, el comercio y la categoría por palabras clave
-curl -X POST http://servidor:8080/api/v1/quick-expense -H "X-API-Key: pk_…" -H "Content-Type: application/json" \
+curl -X POST http://servidor:8090/api/v1/quick-expense -H "X-API-Key: pk_…" -H "Content-Type: application/json" \
   -d '{"text": "Pago con tarjeta de 42,30 EUR en REPSOL..."}'
 ```
 
