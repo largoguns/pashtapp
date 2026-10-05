@@ -154,3 +154,11 @@ def test_month_picker_only_enables_months_with_data(client, db):
     assert 'href="/?y=2025&m=11"' not in html  # sin datos: no seleccionable
     assert 'href="/analysis/matrix?y=2025"' in client.get("/analysis/matrix?y=2026").text
     assert 'href="/analysis/categories?y=2025&m=12"' in client.get("/analysis/categories?y=2026&m=3").text
+
+
+def test_hidden_attribute_beats_display_utilities():
+    """El selector oculta las cuadrículas de otros años con [hidden]; la clase .grid no debe pisarlo."""
+    from pathlib import Path
+
+    css = (Path(__file__).resolve().parent.parent / "app/static/css/app.css").read_text()
+    assert "[hidden]{display:none!important}" in css

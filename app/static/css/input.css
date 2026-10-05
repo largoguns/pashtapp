@@ -5,7 +5,8 @@
 @layer base {
   html { -webkit-tap-highlight-color: transparent; }
   body { font-feature-settings: "tnum" 1; }
-  [x-cloak], .hidden-init { display: none; }
+  /* "hidden" debe ganar siempre a las utilidades de display (grid, flex…). */
+  [hidden] { display: none !important; }
 }
 
 @layer components {
