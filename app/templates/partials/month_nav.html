@@ -1,0 +1,65 @@
+{# Navegación por meses/años con capa de selección. Sólo se pueden elegir periodos con datos. #}
+
+{% macro month_nav(base, year, month, prev, next, period_start, period_end, is_current, periods, current, uid="m", cls="") %}
+<div class="relative flex items-center gap-1 {{ cls }}" data-picker>
+  <a href="{{ base }}?y={{ prev[0] }}&m={{ prev[1] }}" class="rounded-lg px-2 py-1 text-lg text-slate-400 hover:bg-slate-800 hover:text-white" aria-label="Mes anterior">‹</a>
+  <button type="button" class="min-w-[9rem] rounded-lg px-2 py-0.5 text-center leading-tight hover:bg-slate-800"
+          data-picker-toggle aria-haspopup="dialog" aria-expanded="false" aria-controls="picker-{{ uid }}">
+    <span class="block font-semibold">{{ MONTH_NAMES[month - 1] }} {{ year }} <span class="text-xs text-slate-500">▾</span></span>
+    {% if period_start.day != 1 or period_end.month != month %}
+    <span class="block text-[10px] text-slate-500" title="Mes contable: del cobro del salario al siguiente">{{ period_start.strftime('%d/%m') }} – {{ period_end.strftime('%d/%m') }}</span>
+    {% endif %}
+  </button>
+  <a href="{{ base }}?y={{ next[0] }}&m={{ next[1] }}" class="rounded-lg px-2 py-1 text-lg text-slate-400 hover:bg-slate-800 hover:text-white" aria-label="Mes siguiente">›</a>
+  {% if not is_current %}<a href="{{ base }}" class="ml-1 rounded-lg px-2 py-1 text-xs text-emerald-400 hover:bg-slate-800">Hoy</a>{% endif %}
+
+  <div id="picker-{{ uid }}" role="dialog" aria-label="Elegir mes" hidden data-picker-panel
+       class="fixed inset-x-3 top-24 z-50 rounded-2xl border border-slate-700 bg-slate-900 p-3 shadow-2xl md:absolute md:inset-x-auto md:left-1/2 md:top-full md:mt-2 md:w-80 md:-translate-x-1/2">
+    {% set years = periods.keys() | list %}
+    <div class="no-scrollbar mb-3 flex gap-1 overflow-x-auto" role="tablist">
+      {% for y in years %}
+      <button type="button" role="tab" data-picker-year="{{ y }}" aria-selected="{{ 'true' if y == year else 'false' }}"
+              class="rounded-lg px-3 py-1 text-sm {{ 'bg-slate-700 text-white' if y == year else 'text-slate-400 hover:bg-slate-800' }}">{{ y }}</button>
+      {% endfor %}
+    </div>
+    {% for y in years %}
+    <div class="grid grid-cols-3 gap-1.5 sm:grid-cols-4" data-picker-months="{{ y }}" {% if y != (year if year in periods else years[-1]) %}hidden{% endif %}>
+      {% for name in MONTH_SHORT %}
+      {% set m = loop.index %}
+      {% if m in periods[y] %}
+      <a href="{{ base }}?y={{ y }}&m={{ m }}"
+         class="rounded-lg px-2 py-2 text-center text-sm
+                {% if (y, m) == (year, month) %}bg-emerald-500 font-semibold text-slate-950
+                {% else %}bg-slate-800 text-slate-100 hover:bg-slate-700{% endif %}
+                {% if (y, m) == current and (y, m) != (year, month) %}ring-1 ring-emerald-400{% endif %}"
+         {% if (y, m) == current %}title="Mes en curso"{% endif %}>{{ name }}</a>
+      {% else %}
+      <span class="cursor-not-allowed rounded-lg px-2 py-2 text-center text-sm text-slate-600" aria-disabled="true" title="Sin movimientos">{{ name }}</span>
+      {% endif %}
+      {% endfor %}
+    </div>
+    {% endfor %}
+    <p class="mt-3 text-[11px] text-slate-500">Sólo se pueden elegir los meses con movimientos. Con las flechas puedes abrir uno nuevo.</p>
+  </div>
+</div>
+{% endmacro %}
+
+{% macro year_nav(base, year, years, uid="y") %}
+<div class="relative flex items-center gap-1" data-picker>
+  <a href="{{ base }}?y={{ year - 1 }}" class="rounded-lg px-2 py-1 text-lg text-slate-400 hover:bg-slate-800 hover:text-white" aria-label="Año anterior">‹</a>
+  <button type="button" class="min-w-[5rem] rounded-lg px-2 py-1 text-center font-semibold hover:bg-slate-800"
+          data-picker-toggle aria-haspopup="dialog" aria-expanded="false" aria-controls="picker-{{ uid }}">
+    {{ year }} <span class="text-xs text-slate-500">▾</span>
+  </button>
+  <a href="{{ base }}?y={{ year + 1 }}" class="rounded-lg px-2 py-1 text-lg text-slate-400 hover:bg-slate-800 hover:text-white" aria-label="Año siguiente">›</a>
+  <div id="picker-{{ uid }}" role="dialog" aria-label="Elegir año" hidden data-picker-panel
+       class="absolute right-0 top-full z-50 mt-2 w-56 rounded-2xl border border-slate-700 bg-slate-900 p-3 shadow-2xl">
+    <div class="grid grid-cols-3 gap-1.5">
+      {% for y in years %}
+      <a href="{{ base }}?y={{ y }}" class="rounded-lg px-2 py-2 text-center text-sm {{ 'bg-emerald-500 font-semibold text-slate-950' if y == year else 'bg-slate-800 hover:bg-slate-700' }}">{{ y }}</a>
+      {% endfor %}
+    </div>
+    <p class="mt-3 text-[11px] text-slate-500">Años con movimientos.</p>
+  </div>
+</div>
+{% endmacro %}

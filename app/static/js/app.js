@@ -83,6 +83,42 @@
     }
   });
 
+  // ---------------------------------------------------------------- Selector de mes/año
+  function closePickers(except) {
+    $$("[data-picker-panel]").forEach((p) => {
+      if (p === except) return;
+      p.hidden = true;
+      p.closest("[data-picker]")?.querySelector("[data-picker-toggle]")?.setAttribute("aria-expanded", "false");
+    });
+  }
+  document.addEventListener("click", (e) => {
+    const toggle = e.target.closest("[data-picker-toggle]");
+    if (toggle) {
+      const panel = toggle.closest("[data-picker]").querySelector("[data-picker-panel]");
+      closePickers(panel);
+      panel.hidden = !panel.hidden;
+      toggle.setAttribute("aria-expanded", String(!panel.hidden));
+      if (!panel.hidden) panel.querySelector("[aria-selected=true], a")?.focus();
+      return;
+    }
+    const yearTab = e.target.closest("[data-picker-year]");
+    if (yearTab) {
+      const panel = yearTab.closest("[data-picker-panel]");
+      const y = yearTab.dataset.pickerYear;
+      $$("[data-picker-year]", panel).forEach((b) => {
+        const on = b === yearTab;
+        b.setAttribute("aria-selected", String(on));
+        b.classList.toggle("bg-slate-700", on);
+        b.classList.toggle("text-white", on);
+        b.classList.toggle("text-slate-400", !on);
+      });
+      $$("[data-picker-months]", panel).forEach((g) => (g.hidden = g.dataset.pickerMonths !== y));
+      return;
+    }
+    if (!e.target.closest("[data-picker-panel]")) closePickers();
+  });
+  document.addEventListener("keydown", (e) => { if (e.key === "Escape") closePickers(); });
+
   // ---------------------------------------------------------------- HTMX hooks
   document.addEventListener("htmx:afterRequest", (e) => {
     const elt = e.detail.elt;

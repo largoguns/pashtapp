@@ -10,7 +10,7 @@ from app.database import get_db
 from app.deps import require_user
 from app.models import Category
 from app.services.analytics import category_matrix, donut_data, expenses_by_category, utility_series
-from app.services.periods import current_period, period_bounds
+from app.services.periods import available_periods, current_period, period_bounds
 from app.templating import templates
 from app.utils import shift_month
 from app.views import resolve_month
@@ -48,6 +48,7 @@ def by_category(request: Request, y: int | None = None, m: int | None = None, db
     return templates.TemplateResponse(request, "analysis/categories.html", {
         "tab": "categories", "year": year, "month": month, "prev": (py, pm), "next": shift_month(year, month, 1),
         "is_current_month": current_period(db) == (year, month), "period_start": start, "period_end": end,
+        "current": current_period(db), "periods": available_periods(db),
         "rows": rows, "total": total, "prev_total": round(sum(v for v in previous.values() if v > 0), 2),
         "donut": donut_data(db, year, month),
     })
@@ -59,6 +60,7 @@ def matrix(request: Request, y: int | None = None, db: Session = Depends(get_db)
     cy, cm = current_period(db)
     return templates.TemplateResponse(request, "analysis/matrix.html", {
         "tab": "matrix", "matrix": category_matrix(db, year), "month": cm if cy == year else None,
+        "years": list(available_periods(db)),
     })
 
 

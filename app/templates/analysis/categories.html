@@ -1,16 +1,7 @@
 {% extends "analysis/base.html" %}
+{% from "partials/month_nav.html" import month_nav %}
 {% block toolbar %}
-<div class="flex items-center gap-1">
-  <a href="?y={{ prev[0] }}&m={{ prev[1] }}" class="rounded-lg px-2 py-1 text-lg text-slate-400 hover:bg-slate-800 hover:text-white" aria-label="Mes anterior">‹</a>
-  <span class="min-w-[9rem] text-center leading-tight">
-    <span class="block font-semibold">{{ MONTH_NAMES[month - 1] }} {{ year }}</span>
-    {% if period_start.day != 1 or period_end.month != month %}
-    <span class="block text-[10px] text-slate-500">{{ period_start.strftime('%d/%m') }} – {{ period_end.strftime('%d/%m') }}</span>
-    {% endif %}
-  </span>
-  <a href="?y={{ next[0] }}&m={{ next[1] }}" class="rounded-lg px-2 py-1 text-lg text-slate-400 hover:bg-slate-800 hover:text-white" aria-label="Mes siguiente">›</a>
-  {% if not is_current_month %}<a href="/analysis/categories" class="ml-1 rounded-lg px-2 py-1 text-xs text-emerald-400 hover:bg-slate-800">Hoy</a>{% endif %}
-</div>
+{{ month_nav("/analysis/categories", year, month, prev, next, period_start, period_end, is_current_month, periods, current, uid="cat") }}
 {% endblock %}
 
 {% block analysis %}

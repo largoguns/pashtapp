@@ -142,3 +142,15 @@ def test_analysis_pages_show_data(client, db):
     # El tablero ya no incluye analítica ni préstamos.
     home = client.get("/?y=2026&m=3").text
     assert 'id="donut"' not in home and "Simular amortización" not in home
+
+
+def test_month_picker_only_enables_months_with_data(client, db):
+    for y, m in ((2025, 12), (2026, 3)):
+        db.add(Transaction(date=date(y, m, 1), period_year=y, period_month=m, name="x", amount=-1))
+    db.commit()
+    html = client.get("/?y=2026&m=3").text
+    assert 'data-picker-year="2025"' in html and 'data-picker-year="2026"' in html
+    assert 'href="/?y=2025&m=12"' in html and 'href="/?y=2026&m=3"' in html
+    assert 'href="/?y=2025&m=11"' not in html  # sin datos: no seleccionable
+    assert 'href="/analysis/matrix?y=2025"' in client.get("/analysis/matrix?y=2026").text
+    assert 'href="/analysis/categories?y=2025&m=12"' in client.get("/analysis/categories?y=2026&m=3").text

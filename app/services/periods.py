@@ -106,3 +106,14 @@ def template_date(year: int, month: int, day: int, start_day: int) -> date:
 
 def period_key(year: int, month: int) -> int:
     return year * 12 + (month - 1)
+
+
+def available_periods(db: Session) -> dict[int, list[int]]:
+    """Meses contables con movimientos, por año (incluye siempre el mes en curso)."""
+    rows = db.execute(select(Transaction.period_year, Transaction.period_month).distinct()).all()
+    out: dict[int, set[int]] = {}
+    for y, m in rows:
+        out.setdefault(y, set()).add(m)
+    cy, cm = current_period(db)
+    out.setdefault(cy, set()).add(cm)
+    return {y: sorted(ms) for y, ms in sorted(out.items())}

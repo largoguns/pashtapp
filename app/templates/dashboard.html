@@ -2,19 +2,8 @@
 {% set active = "home" %}
 {% set qs = "view_y=%d&view_m=%d" | format(year, month) %}
 
-{% macro month_nav(cls="") %}
-<div class="flex items-center gap-1 {{ cls }}">
-  <a href="/?y={{ prev[0] }}&m={{ prev[1] }}" class="rounded-lg px-2 py-1 text-lg text-slate-400 hover:bg-slate-800 hover:text-white" aria-label="Mes anterior">‹</a>
-  <span class="min-w-[9rem] text-center leading-tight">
-    <span class="block font-semibold">{{ MONTH_NAMES[month - 1] }} {{ year }}</span>
-    {% if period_start.day != 1 or period_end.month != month %}
-    <span class="block text-[10px] text-slate-500" title="Mes contable: del cobro del salario al siguiente">{{ period_start.strftime('%d/%m') }} – {{ period_end.strftime('%d/%m') }}</span>
-    {% endif %}
-  </span>
-  <a href="/?y={{ next[0] }}&m={{ next[1] }}" class="rounded-lg px-2 py-1 text-lg text-slate-400 hover:bg-slate-800 hover:text-white" aria-label="Mes siguiente">›</a>
-  {% if not is_current_month %}<a href="/" class="ml-1 rounded-lg px-2 py-1 text-xs text-emerald-400 hover:bg-slate-800">Hoy</a>{% endif %}
-</div>
-{% endmacro %}
+{% from "partials/month_nav.html" import month_nav as _month_nav %}
+{% macro month_nav(cls="", uid="m") %}{{ _month_nav("/", year, month, prev, next, period_start, period_end, is_current_month, periods, current, uid=uid, cls=cls) }}{% endmacro %}
 
 {% macro salary_banner(cls="") %}
 {% if next_salary_due %}
@@ -27,7 +16,7 @@
 {% endmacro %}
 
 {% block header_actions %}
-  {{ month_nav() }}
+  {{ month_nav(uid="desk") }}
   <button class="btn-primary" data-sheet-open>＋ Añadir</button>
 {% endblock %}
 
@@ -42,7 +31,7 @@
         <img src="/static/icons/icon-192.png" alt="" class="h-7 w-7 rounded-lg">
         <span class="font-bold">PashtAPP</span>
       </div>
-      {{ month_nav("text-sm") }}
+      {{ month_nav("text-sm", uid="mob") }}
     </div>
     {% include "partials/mobile_header.html" %}
   </header>

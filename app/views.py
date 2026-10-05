@@ -10,7 +10,7 @@ from sqlalchemy.orm import Session
 from app.models import Category
 from app.services.analytics import budget_statuses
 from app.services.balances import month_summary, month_transactions_query
-from app.services.periods import current_period, estimated_start, get_start_day, period_bounds
+from app.services.periods import available_periods, current_period, estimated_start, get_start_day, period_bounds
 from app.templating import templates
 from app.utils import shift_month, today
 
@@ -48,6 +48,8 @@ def month_context(db: Session, year: int, month: int) -> dict:
         "period_start": start,
         "period_end": end,
         "is_current_month": current == (year, month),
+        "current": current,
+        "periods": available_periods(db),
         # Fecha por defecto del alta: hoy en el mes en curso; si no, el día 1 (o el inicio del periodo).
         "default_date": t if current == (year, month) else (date(year, month, 1) if start <= date(year, month, 1) <= end else start),
         "summary": month_summary(db, year, month),
