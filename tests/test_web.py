@@ -73,3 +73,23 @@ def test_exports_and_backup(client, db):
     r = client.post("/backups/run", follow_redirects=False)
     assert r.status_code == 303
     assert "pashtapp_" in client.get("/settings?tab=data").text
+
+
+def test_password_hash_accepts_base64(monkeypatch):
+    import base64
+
+    import pytest
+
+    from app.config import _decode_password_hash
+    from app.services.auth import hash_password, verify_password
+
+    h = hash_password("clave")
+    b64 = base64.b64encode(h.encode()).decode()
+    assert "$" not in b64
+    assert _decode_password_hash(b64) == h and verify_password("clave", _decode_password_hash(b64))
+    assert _decode_password_hash(h) == h
+    assert _decode_password_hash(f"'{h}'") == h
+    assert _decode_password_hash(None) is None
+    # Un valor que no es hash ni base64 de hash falla al arrancar, no en el login.
+    with pytest.raises(RuntimeError):
+        _decode_password_hash("no-es-un-hash")

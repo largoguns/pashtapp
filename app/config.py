@@ -1,6 +1,8 @@
 """Configuración de PashtAPP leída de variables de entorno."""
 from __future__ import annotations
 
+import base64
+import binascii
 import os
 import secrets
 from dataclasses import dataclass
@@ -11,6 +13,29 @@ def _bool(value: str | None, default: bool = False) -> bool:
     if value is None:
         return default
     return value.strip().lower() in {"1", "true", "yes", "on", "si", "sí"}
+
+
+def _decode_password_hash(raw: str | None) -> str | None:
+    """Acepta el hash bcrypt tal cual (``$2b$...``) o codificado en base64.
+
+    El base64 no contiene ``$``, así que sobrevive a la interpolación de variables de
+    Docker Compose / Portainer (``stack.env``), que corrompe los hashes bcrypt en claro.
+    """
+    if not raw:
+        return None
+    raw = raw.strip().strip("'\"")
+    if raw.startswith("$2"):
+        return raw
+    try:
+        decoded = base64.b64decode(raw, validate=True).decode("ascii").strip()
+    except (binascii.Error, UnicodeDecodeError):
+        decoded = ""
+    if not decoded.startswith("$2"):
+        raise RuntimeError(
+            "ADMIN_PASSWORD_HASH no es un hash bcrypt ($2b$...) ni su versión base64. "
+            "Genéralo con: python scripts/hash_password.py"
+        )
+    return decoded
 
 
 @dataclass(frozen=True)
@@ -50,7 +75,7 @@ def get_settings() -> Settings:
         secret_key=secret,
         database_url=os.getenv("DATABASE_URL", "sqlite:///./data/pashtapp.db"),
         admin_username=os.getenv("ADMIN_USERNAME") or None,
-        admin_password_hash=os.getenv("ADMIN_PASSWORD_HASH") or None,
+        admin_password_hash=_decode_password_hash(os.getenv("ADMIN_PASSWORD_HASH")),
         admin_password=os.getenv("ADMIN_PASSWORD") or None,
         backup_dir=os.getenv("BACKUP_DIR", "./backups"),
         session_hours=int(os.getenv("SESSION_HOURS", str(24 * 30))),

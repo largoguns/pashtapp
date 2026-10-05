@@ -18,7 +18,7 @@ python scripts/hash_password.py                                  # → ADMIN_PAS
 docker compose up -d --build                                     # http://<servidor>:8080
 ```
 
-> En `.env` el hash va entre **comillas simples** (`ADMIN_PASSWORD_HASH='$2b$12$…'`). Si lo pegas en el bloque `environment` de Portainer, escribe cada `$` como `$$`. `scripts/hash_password.py` imprime las dos variantes.
+En **Portainer** (Stacks → *Environment variables*) basta con definir `SECRET_KEY` y `ADMIN_PASSWORD_HASH`, y opcionalmente `ADMIN_USERNAME` y `COOKIE_SECURE`. Usa el valor **base64** que imprime `scripts/hash_password.py`: no contiene `$`, así que la interpolación de Compose sobre `stack.env` no lo altera. Un hash bcrypt en claro (`$2b$12$…`) sí se corrompería: Compose interpreta `$e0M2…` como una variable vacía. También se acepta el hash en claro en un `.env` local entre comillas simples.
 
 Pensado para la red local o Tailscale. Si lo sirves por HTTPS (p. ej. `tailscale serve`), pon `COOKIE_SECURE=true`.
 
