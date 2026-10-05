@@ -1,13 +1,13 @@
 /* PashtAPP Service Worker: estáticos cache-first, páginas network-first con fallback offline. */
-const VERSION = "pashtapp-v4";
+const VERSION = "pashtapp-v5";
 const STATIC_CACHE = `${VERSION}-static`;
 const PAGE_CACHE = `${VERSION}-pages`;
 const PRECACHE = [
   "/offline",
-  "/static/css/app.css?v=4",
-  "/static/js/app.js?v=4",
-  "/static/vendor/htmx.min.js?v=4",
-  "/static/vendor/chart.umd.min.js?v=4",
+  "/static/css/app.css?v=5",
+  "/static/js/app.js?v=5",
+  "/static/vendor/htmx.min.js?v=5",
+  "/static/vendor/chart.umd.min.js?v=5",
   "/static/icons/icon-192.png",
   "/static/icons/icon-512.png",
   "/manifest.json",

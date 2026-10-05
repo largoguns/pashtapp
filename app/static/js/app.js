@@ -84,6 +84,17 @@
   });
 
   // ---------------------------------------------------------------- Selector de mes/año
+  // La capa se centra bajo el selector; si así se sale de la ventana, se desplaza hasta caber.
+  function keepInViewport(panel, gap = 8) {
+    panel.style.marginLeft = "0px";
+    const r = panel.getBoundingClientRect();
+    let shift = 0;
+    if (r.right > window.innerWidth - gap) shift = window.innerWidth - gap - r.right;
+    if (r.left + shift < gap) shift = gap - r.left;
+    panel.style.marginLeft = `${shift}px`;
+  }
+  window.addEventListener("resize", () => $$("[data-picker-panel]:not([hidden])").forEach((p) => keepInViewport(p)));
+
   function closePickers(except) {
     $$("[data-picker-panel]").forEach((p) => {
       if (p === except) return;
@@ -98,6 +109,7 @@
       closePickers(panel);
       panel.hidden = !panel.hidden;
       toggle.setAttribute("aria-expanded", String(!panel.hidden));
+      if (!panel.hidden) keepInViewport(panel);
       if (!panel.hidden) panel.querySelector("[aria-selected=true], a")?.focus();
       return;
     }
