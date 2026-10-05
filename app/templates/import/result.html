@@ -1,0 +1,52 @@
+{% extends "layout.html" %}
+{% set active = "settings" %}
+{% macro months_list(ms) %}{% for m in ms %}{{ MONTH_NAMES[m - 1] }}{{ ", " if not loop.last }}{% else %}—{% endfor %}{% endmacro %}
+{% block content %}
+<div class="mx-auto max-w-2xl space-y-5 pt-6">
+  <h1 class="text-2xl font-bold">Importación completada</h1>
+  <div class="rounded-2xl border border-emerald-500/30 bg-emerald-500/10 p-4 text-emerald-100">
+    {{ report.transactions }} movimientos importados de {{ report.year }}.
+  </div>
+  <section class="card p-5">
+    <dl class="grid grid-cols-[10rem_1fr] gap-x-4 gap-y-2 text-sm">
+      <dt class="text-slate-400">Meses nuevos</dt><dd>{{ months_list(report.imported) }}</dd>
+      <dt class="text-slate-400">Reemplazados</dt><dd>{{ months_list(report.replaced) }}</dd>
+      <dt class="text-slate-400">Omitidos</dt><dd>{{ months_list(report.skipped) }}{% if report.skipped %} <span class="text-xs text-slate-500">(ya tenían datos)</span>{% endif %}</dd>
+      <dt class="text-slate-400">Préstamos</dt>
+      <dd>
+        {% if report.loans_created %}creados {{ report.loans_created | join(", ") }}. {% endif %}
+        {% if report.loans_replaced %}reemplazados {{ report.loans_replaced | join(", ") }}. {% endif %}
+        {% if report.loans_kept %}conservados {{ report.loans_kept | join(", ") }}.{% endif %}
+        {% if not (report.loans_created or report.loans_replaced or report.loans_kept) %}—{% endif %}
+      </dd>
+      <dt class="text-slate-400">Luz</dt><dd>{{ report.utility }} meses</dd>
+      <dt class="text-slate-400">Plantillas creadas</dt><dd>{{ report.templates }}</dd>
+      <dt class="text-slate-400">Copia previa</dt><dd class="font-mono text-xs">{{ backup }}</dd>
+    </dl>
+  </section>
+  {% if report.checks %}
+  <section class="card overflow-x-auto">
+    <h2 class="card-title px-4 pt-4">Arrastre de saldo frente al libro</h2>
+    <table class="tbl mt-2">
+      <thead><tr><th>Mes</th><th class="text-right">PashtAPP</th><th class="text-right">«Resto mes anterior»</th><th></th></tr></thead>
+      <tbody>
+        {% for m, pair in report.checks.items() %}
+        {% set ours, theirs = pair %}
+        <tr>
+          <td>{{ MONTH_NAMES[m - 1] }}</td>
+          <td class="text-right tabular-nums">{{ ours | eur }}</td>
+          <td class="text-right tabular-nums">{{ theirs | eur }}</td>
+          <td class="text-right">{% if (ours - theirs) | abs < 0.01 %}<span class="badge-green">✓</span>{% else %}<span class="badge-amber">Δ {{ (ours - theirs) | eur(sign=True) }}</span>{% endif %}</td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+    <p class="px-4 pb-4 text-[11px] text-slate-500">PashtAPP arrastra sólo lo conciliado; el libro arrastra también lo pendiente, así que difieren en meses con cargos sin conciliar.</p>
+  </section>
+  {% endif %}
+  <div class="flex gap-3">
+    <a href="/" class="btn-primary">Ir al tablero</a>
+    <a href="/settings?tab=data" class="btn-secondary">Volver a Datos y copias</a>
+  </div>
+</div>
+{% endblock %}

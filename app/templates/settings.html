@@ -194,6 +194,13 @@ curl -X POST {{ request.base_url }}api/v1/quick-expense \
   </section>
 
   {% elif tab == "data" %}
+  <section class="card flex flex-wrap items-center justify-between gap-3 p-5">
+    <div>
+      <h2 class="font-semibold">Importar desde Excel</h2>
+      <p class="mt-1 text-sm text-slate-400">Sube un libro con el formato de Pashta Saeta, revisa lo detectado y elige qué hojas importar.</p>
+    </div>
+    <a href="/import" class="btn-primary">⬆ Importar libro</a>
+  </section>
   <div class="grid gap-4 md:grid-cols-2">
     <section class="card p-5">
       <h2 class="font-semibold">Exportar</h2>

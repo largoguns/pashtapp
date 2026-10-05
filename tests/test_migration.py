@@ -16,7 +16,7 @@ def test_migration_matches_workbook_balances(tmp_path):
         [sys.executable, "scripts/migrate_excel.py", str(BOOK), "--db", db_url, "--today", "2026-10-05"],
         cwd=ROOT, capture_output=True, text=True, check=True,
     ).stdout
-    assert "Migración completada" in out
+    assert "Importación completada: 492 movimientos" in out
     for month in ("febrero", "marzo", "abril", "mayo", "junio", "julio", "agosto", "septiembre", "octubre"):
         line = next(l for l in out.splitlines() if l.strip().startswith(month))
         assert line.rstrip().endswith("✓"), line

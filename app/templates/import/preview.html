@@ -1,0 +1,108 @@
+{% extends "layout.html" %}
+{% set active = "settings" %}
+{% set any_existing = res.months | select("in", existing) | list %}
+{% block content %}
+<div class="mx-auto max-w-4xl space-y-5 pt-6">
+  <a href="/import" class="btn-ghost -ml-3">‹ Subir otro fichero</a>
+  <div>
+    <h1 class="text-2xl font-bold">Vista previa de la importación</h1>
+    <p class="text-sm text-slate-400">{{ filename }} · año {{ res.year }}</p>
+  </div>
+
+  {% for w in res.warnings %}
+  <p class="rounded-xl bg-amber-500/10 px-4 py-2 text-sm text-amber-200">⚠️ {{ w }}</p>
+  {% endfor %}
+
+  {% if not res.months %}
+  <div class="card p-8 text-center text-sm text-slate-400">No se ha encontrado ninguna hoja mensual (Enero…Diciembre) con el formato esperado.</div>
+  {% else %}
+  <form method="post" action="/import/{{ token }}" class="space-y-5"
+        onsubmit="this.querySelector('button[type=submit]').disabled = true">
+    <input type="hidden" name="year" value="{{ res.year }}">
+
+    <section class="card overflow-x-auto">
+      <div class="flex items-center justify-between px-4 pt-4">
+        <h2 class="card-title">Hojas mensuales</h2>
+        <label class="flex items-center gap-2 text-xs text-slate-400">
+          <input type="checkbox" class="tick h-5 w-5" checked onchange="document.querySelectorAll('[name=months]').forEach(c => c.checked = this.checked)">
+          Todas
+        </label>
+      </div>
+      <table class="tbl mt-2">
+        <thead>
+          <tr><th class="w-10"></th><th>Hoja</th><th class="text-right">Ingresos</th><th class="text-right">Fijos</th>
+              <th class="text-right">Variables</th><th class="text-right">Movimientos</th><th>En PashtAPP</th></tr>
+        </thead>
+        <tbody>
+          {% for m in res.months %}
+          {% set o = overview[m] %}
+          <tr>
+            <td><input type="checkbox" name="months" value="{{ m }}" class="tick" checked aria-label="Importar {{ MONTH_NAMES[m - 1] }}"></td>
+            <td class="font-medium">{{ MONTH_NAMES[m - 1] }}</td>
+            <td class="text-right tabular-nums text-emerald-300">{{ o.income | eur }}</td>
+            <td class="text-right tabular-nums">{{ o.fixed | eur }}</td>
+            <td class="text-right tabular-nums">{{ o.variable | eur }}</td>
+            <td class="text-right tabular-nums text-slate-400">{{ o.count }} <span class="text-xs">({{ o.settled }} ✓)</span></td>
+            <td>
+              {% if existing.get(m) %}<span class="badge-amber">Ya tiene {{ existing[m] }}</span>
+              {% else %}<span class="badge-green">Vacío</span>{% endif %}
+            </td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+      {% if any_existing %}
+      <fieldset class="border-t border-slate-800 p-4">
+        <legend class="sr-only">Meses con datos</legend>
+        <p class="mb-2 text-sm text-slate-300">Para los meses que ya tienen movimientos en PashtAPP:</p>
+        <div class="grid gap-2 sm:grid-cols-2">
+          <label><input type="radio" name="on_existing" value="skip" class="peer sr-only" checked>
+            <span class="block cursor-pointer rounded-xl border border-slate-700 p-3 text-sm peer-checked:border-emerald-400 peer-checked:bg-emerald-500/10">
+              <b class="block">Omitirlos</b><span class="text-xs text-slate-400">Sólo se importan los meses vacíos</span></span></label>
+          <label><input type="radio" name="on_existing" value="replace" class="peer sr-only">
+            <span class="block cursor-pointer rounded-xl border border-slate-700 p-3 text-sm peer-checked:border-rose-400 peer-checked:bg-rose-500/10">
+              <b class="block">Reemplazarlos</b><span class="text-xs text-slate-400">Se borran sus movimientos y se cargan los del libro</span></span></label>
+        </div>
+      </fieldset>
+      {% endif %}
+    </section>
+
+    <section class="card space-y-3 p-4">
+      <h2 class="card-title">Otros datos</h2>
+      <label class="flex items-start gap-3 text-sm">
+        <input type="checkbox" name="loans" value="true" class="tick mt-0.5" {% if res.loans %}checked{% else %}disabled{% endif %}>
+        <span>Préstamos:
+          {% for ln in res.loans %}<b>{{ ln.name }}</b> ({{ ln.term }} cuotas de {{ ln.fee | eur }}){{ ", " if not loop.last }}{% else %}<span class="text-slate-500">no se han encontrado</span>{% endfor %}
+          <span class="block text-xs text-slate-500">Los que ya existan con el mismo nombre se conservan.</span>
+        </span>
+      </label>
+      {% if res.loans %}
+      <label class="ml-9 flex items-center gap-3 text-sm text-slate-300">
+        <input type="checkbox" name="replace_loans" value="true" class="tick"> Reemplazar el cuadro de los préstamos que ya existan
+      </label>
+      {% endif %}
+      <label class="flex items-start gap-3 text-sm">
+        <input type="checkbox" name="utility" value="true" class="tick mt-0.5" {% if res.utility %}checked{% else %}disabled{% endif %}>
+        <span>Histórico de luz: {{ res.utility | length }} meses
+          <span class="block text-xs text-slate-500">Se actualizan las lecturas de esos meses.</span></span>
+      </label>
+      <label class="flex items-start gap-3 text-sm">
+        <input type="checkbox" name="templates" value="true" class="tick mt-0.5" checked>
+        <span>Crear plantillas de fijos a partir del último mes importado
+          <span class="block text-xs text-slate-500">Sólo si todavía no tienes ninguna plantilla.</span></span>
+      </label>
+      <div class="flex items-center gap-3 pt-1 text-sm">
+        <label for="start-day">Día estimado de cobro del salario</label>
+        <input id="start-day" name="start_day" type="number" min="1" max="28" value="{{ start_day }}" class="input w-20 py-1.5">
+      </div>
+      <p class="text-xs text-slate-500">Categorías detectadas: {{ res.categories | join(", ") }}.</p>
+    </section>
+
+    <div class="flex items-center justify-end gap-3">
+      <span class="text-xs text-slate-500">Se hará una copia de seguridad antes de importar.</span>
+      <button type="submit" class="btn-primary px-6 py-3">Importar</button>
+    </div>
+  </form>
+  {% endif %}
+</div>
+{% endblock %}

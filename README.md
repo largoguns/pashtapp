@@ -23,12 +23,24 @@ En **Portainer** (Stacks → *Environment variables*) basta con definir `SECRET_
 
 Pensado para la red local o Tailscale. Si lo sirves por HTTPS (p. ej. `tailscale serve`), pon `COOKIE_SECURE=true`.
 
-### Migración desde el Excel
+### Importar desde el Excel
+
+**Desde la web** (*Ajustes → Datos y copias → Importar libro*):
+
+1. Subes el `.xlsx`.
+2. Revisas la vista previa: qué hojas se han detectado, con sus totales, y cuáles ya tienen datos en PashtAPP.
+3. Eliges qué meses importar y si los que ya tienen datos se omiten o se reemplazan.
+4. Decides si incluir préstamos y luz.
+
+Antes de escribir nada se hace una copia de seguridad automática. Sirve tanto para la carga inicial como para traer el libro de un año nuevo o rehacer un mes concreto.
+
+**Desde la línea de comandos**, lo mismo con el script:
 
 ```bash
 docker compose cp "Pashta Saeta 2026.xlsx" pashtapp-web:/tmp/import.xlsx
 docker compose exec pashtapp-web python scripts/migrate_excel.py /tmp/import.xlsx --dry-run   # revisar
 docker compose exec pashtapp-web python scripts/migrate_excel.py /tmp/import.xlsx            # importar
+docker compose exec pashtapp-web python scripts/migrate_excel.py /tmp/import.xlsx --months 10 --replace  # rehacer octubre
 docker compose exec -u 0 pashtapp-web rm /tmp/import.xlsx
 ```
 
@@ -40,7 +52,7 @@ El migrador importa:
 - los cuadros de *Coche*, *Grueso* y *Placas*, con detección de cuota final *balloon*;
 - como saldo inicial, el «Resto mes anterior» de enero.
 
-Además enlaza los cargos «Préstamo X» de cada mes con su cuota del cuadro y crea plantillas de fijos a partir del último mes. Al terminar compara el arrastre de saldo calculado con el «Resto mes anterior» de cada hoja. `--reset` vacía los datos antes de volver a importar.
+Por defecto omite los meses que ya tienen datos y conserva los préstamos existentes. Además enlaza los cargos «Préstamo X» de cada mes con su cuota del cuadro y crea plantillas de fijos a partir del último mes. Al terminar compara el arrastre de saldo calculado con el «Resto mes anterior» de cada hoja. `--reset` vacía los datos antes de volver a importar.
 
 > **Arrastre de saldo.** PashtAPP arrastra el saldo *efectivo* (sólo lo conciliado), como pide la especificación. El libro arrastra el saldo «tras cargos», que incluye también lo pendiente. Por eso coinciden en los meses cerrados y difieren en los meses que aún tienen cargos sin conciliar.
 
