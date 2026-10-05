@@ -15,7 +15,7 @@ TEMPLATES_DIR = Path(__file__).parent / "templates"
 ICONS = {
     "tag": "🏷️", "cart": "🛒", "food": "🍽️", "fuel": "⛽", "car": "🚗", "home": "🏠", "bolt": "⚡",
     "water": "💧", "phone": "📱", "wifi": "📶", "health": "💊", "gift": "🎁", "kids": "🧸",
-    "pet": "🐾", "travel": "✈️", "bank": "🏦", "card": "💳", "money": "💶", "salary": "💼",
+    "pet": "🐾", "travel": "✈️", "bank": "🏦", "card": "💳", "money": "💶", "coin": "🪙", "savings": "🪙", "salary": "💼",
     "shopping": "🛍️", "leisure": "🎬", "sport": "🏋️", "school": "🎓", "insurance": "🛡️",
     "tax": "🧾", "transport": "🚌", "coffee": "☕", "subscription": "🔁", "tools": "🛠️",
     "clothes": "👕", "beauty": "💇", "other": "📦", "solar": "☀️",

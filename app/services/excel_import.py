@@ -58,7 +58,7 @@ FIXED_CATEGORY = {
 CATEGORY_ICON = {
     "comida": "🛒", "ocio": "🎬", "trabajo": "💼", "farmacia": "💊", "hogar": "🏠", "regalos": "🎁",
     "ana": "🎓", "estanco": "🚬", "comida externa": "🍽️", "reintegros": "🏧", "vacaciones": "✈️",
-    "devoluciones": "↩️", "fiestas": "🎉", "salario": "💶", "ahorro": "🐷", "vivienda": "🏡",
+    "devoluciones": "↩️", "fiestas": "🎉", "salario": "💶", "ahorro": "🪙", "vivienda": "🏡",
     "suministros": "🔌", "luz": "⚡", "gasolina": "⛽", "seguros": "🛡️", "familia": "🧸",
     "impuestos": "🧾", "prestamos": "🏦", "fijos": "📌", "otros": "📦",
 }

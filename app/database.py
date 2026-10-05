@@ -78,3 +78,6 @@ def _upgrade_schema() -> None:
             existing = {row[1] for row in conn.exec_driver_sql(f"PRAGMA table_info({table})")}
             if existing and column not in existing:
                 conn.exec_driver_sql(f"ALTER TABLE {table} ADD COLUMN {column} {ddl}")
+        # Icono del ahorro: la hucha (🐷) pasa a moneda (🪙) en las categorías ya importadas.
+        if conn.exec_driver_sql("SELECT 1 FROM sqlite_master WHERE type='table' AND name='categories'").first():
+            conn.exec_driver_sql("UPDATE categories SET icon = '🪙' WHERE icon = '🐷'")
