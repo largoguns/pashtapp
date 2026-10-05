@@ -1,6 +1,6 @@
-# PashtAPP · Finanzas Domésticas Saeta
+# PashtAPP · Finanzas Domésticas
 
-PWA para las finanzas de casa que sustituye al libro de cálculo *Pashta Saeta*. Está hecha con FastAPI, SQLite (WAL), Jinja2, HTMX, Tailwind y Chart.js, y no usa Node.js en producción.
+PWA para las finanzas de casa que sustituye al libro de cálculo *Pashta*. Está hecha con FastAPI, SQLite (WAL), Jinja2, HTMX, Tailwind y Chart.js, y no usa Node.js en producción.
 
 - **Móvil**: cabecera con los saldos *En Cuenta* y *Proyectado*, y un botón **+** que abre un bottom-sheet. Para apuntar un gasto basta con escribir el importe y tocar la categoría y Guardar. El movimiento puede quedar cobrado, pendiente, diferido 2 días, cargado el mes siguiente o fraccionado en cuotas. La conciliación se hace con un toque.
 - **Escritorio**: KPIs del mes, tabla de fijos (con ingresos) frente a tabla de variables con buscador y filtros, donut por categoría, matriz anual de categorías, histórico de luz y fichas de préstamos con simulador de amortización anticipada.
@@ -44,7 +44,7 @@ Antes de escribir nada se hace una copia de seguridad automática. Sirve tanto p
 **Desde la línea de comandos**, lo mismo con el script:
 
 ```bash
-docker compose cp "Pashta Saeta 2026.xlsx" pashtapp-web:/tmp/import.xlsx
+docker compose cp libro.xlsx pashtapp-web:/tmp/import.xlsx
 docker compose exec pashtapp-web python scripts/migrate_excel.py /tmp/import.xlsx --dry-run   # revisar
 docker compose exec pashtapp-web python scripts/migrate_excel.py /tmp/import.xlsx            # importar
 docker compose exec pashtapp-web python scripts/migrate_excel.py /tmp/import.xlsx --months 10 --replace  # rehacer octubre
