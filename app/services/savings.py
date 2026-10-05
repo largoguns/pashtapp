@@ -11,6 +11,10 @@ El saldo se construye con:
 Intereses: se estiman a diario (TIN/365, capitalización diaria, como Revolut) sobre el saldo.
 Al «cuadrar» con el saldo real, la diferencia con el saldo apuntado se guarda como intereses
 reales y la estimación vuelve a empezar desde ese día.
+
+Si se ha importado el extracto de la cuenta (``savings_statement_lines``), es la fuente de verdad
+hasta su última fecha: saldo, depósitos, retiradas e intereses reales. Después de esa fecha se
+usan los traspasos vinculados, los movimientos propios y la estimación de intereses.
 """
 from __future__ import annotations
 
@@ -21,7 +25,7 @@ from datetime import date, timedelta
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
-from app.models import Category, SavingsAccount, SavingsMovement, Transaction
+from app.models import Category, SavingsAccount, SavingsMovement, SavingsStatementLine, Transaction
 from app.utils import MONTH_SHORT, add_months, today
 
 
@@ -29,23 +33,50 @@ from app.utils import MONTH_SHORT, add_months, today
 class Event:
     date: date
     amount: float
-    kind: str        # deposit | withdrawal | expense | interest | opening
+    kind: str        # deposit | withdrawal | expense | lent | interest
     name: str
     tx_id: int | None = None
     movement_id: int | None = None
+    line_id: int | None = None
     pending: bool = False
+    unclassified: bool = False
+    external: bool = False   # depósito de dinero que no viene de la cuenta principal
+
+
+_LINE_KIND = {"expense": "expense", "lent": "lent"}
+
+
+def statement_lines(db: Session, account: SavingsAccount) -> list[SavingsStatementLine]:
+    return list(db.scalars(select(SavingsStatementLine).where(SavingsStatementLine.account_id == account.id)
+                           .order_by(SavingsStatementLine.date, SavingsStatementLine.id)))
 
 
 def events(db: Session, account: SavingsAccount, *, include_pending: bool = False) -> list[Event]:
     out: list[Event] = []
+    lines = statement_lines(db, account)
+    cutoff = lines[-1].date if lines else None
+    matched = {ln.transaction_id for ln in lines if ln.transaction_id}
+    for ln in lines:
+        kind = "interest" if ln.kind == "interest" else (
+            "deposit" if ln.kind == "deposit" else _LINE_KIND.get(ln.classification or "", "withdrawal"))
+        name = ln.label or ("Intereses" if kind == "interest" else ln.description)
+        out.append(Event(ln.date, ln.amount, kind, name, tx_id=ln.transaction_id, line_id=ln.id,
+                         unclassified=ln.kind != "interest" and ln.classification is None,
+                         external=ln.classification == "external"))
+
     q = select(Transaction).where(Transaction.savings_account_id == account.id)
     if not include_pending:
         q = q.where(Transaction.is_settled.is_(True))
     for tx in db.scalars(q).unique():
-        when = tx.booking_date
-        out.append(Event(when, round(-tx.amount, 2), "withdrawal" if tx.amount > 0 else "deposit", tx.name,
-                         tx_id=tx.id, pending=not tx.is_settled))
+        if tx.id in matched:
+            continue  # ya está en el extracto
+        if tx.is_settled and cutoff and tx.booking_date <= cutoff:
+            continue  # cubierto por el extracto
+        out.append(Event(tx.booking_date, round(-tx.amount, 2), "withdrawal" if tx.amount > 0 else "deposit",
+                         tx.name, tx_id=tx.id, pending=not tx.is_settled))
     for mv in db.scalars(select(SavingsMovement).where(SavingsMovement.account_id == account.id)):
+        if cutoff and mv.date <= cutoff:
+            continue
         out.append(Event(mv.date, mv.amount, mv.kind, mv.name, movement_id=mv.id))
     out.sort(key=lambda e: (e.date, e.kind != "interest"))
     return out
@@ -62,8 +93,8 @@ def simulate(account: SavingsAccount, evs: list[Event], until: date) -> dict[dat
     daily = account.annual_rate / 100 / 365
     by_day: dict[date, list[Event]] = defaultdict(list)
     for e in evs:
-        if not e.pending:
-            by_day[max(e.date, account.opening_date)].append(e)
+        if not e.pending and e.date >= account.opening_date:  # lo anterior ya está en el saldo inicial
+            by_day[e.date].append(e)
     book, est = account.opening_balance, 0.0
     states: dict[date, DayState] = {}
     d = account.opening_date
@@ -87,6 +118,7 @@ class MonthRow:
     expenses: float = 0.0
     interest: float = 0.0     # reales + variación de la estimación
     balance: float = 0.0
+    external: float = 0.0     # parte de lo aportado que vino de fuera (no es ahorro del mes)
 
     @property
     def label(self) -> str:
@@ -104,6 +136,10 @@ class SavingsSummary:
     total_withdrawals: float
     total_expenses: float
     total_interest: float         # reales + estimados
+    total_lent: float
+    total_unclassified: float     # retiradas del extracto aún sin clasificar
+    unclassified: int             # líneas del extracto pendientes de revisar
+    statement_until: date | None
     months: list[MonthRow]
     monthly_rate_contribution: float
     projection: list[tuple[str, float]]
@@ -115,8 +151,9 @@ class SavingsSummary:
 def summary(db: Session, account: SavingsAccount, *, ref: date | None = None, horizon: int = 12) -> SavingsSummary:
     ref = ref or today()
     evs = events(db, account, include_pending=True)
-    real = [e for e in evs if not e.pending]
+    real = [e for e in evs if not e.pending and e.date >= account.opening_date]
     states = simulate(account, real, ref)
+    lines = statement_lines(db, account)
     now = states.get(ref) or DayState(account.opening_balance, 0.0)
 
     # Serie mensual (mes natural: los saldos bancarios van por fechas).
@@ -130,9 +167,11 @@ def summary(db: Session, account: SavingsAccount, *, ref: date | None = None, ho
             if cursor <= e.date <= end:
                 if e.kind == "deposit":
                     row.deposits += e.amount
+                    if e.external:
+                        row.external += e.amount
                 elif e.kind == "withdrawal":
                     row.withdrawals -= e.amount
-                elif e.kind == "expense":
+                elif e.kind in ("expense", "lent"):
                     row.expenses -= e.amount
                 elif e.kind == "interest":
                     row.interest += e.amount
@@ -140,14 +179,14 @@ def summary(db: Session, account: SavingsAccount, *, ref: date | None = None, ho
         row.interest += st.estimated - prev_est
         prev_est = st.estimated
         row.balance = round(st.book + st.estimated, 2)
-        for attr in ("deposits", "withdrawals", "expenses", "interest"):
+        for attr in ("deposits", "withdrawals", "expenses", "interest", "external"):
             setattr(row, attr, round(getattr(row, attr), 2))
         months.append(row)
         cursor = add_months(cursor, 1, day=1)
 
     # Ritmo de ahorro: media neta de los últimos 3 meses con movimiento.
     recent_rows = [r for r in months if r.deposits or r.withdrawals or r.expenses][-3:]
-    rate = round(sum(r.deposits - r.withdrawals - r.expenses for r in recent_rows) / len(recent_rows), 2) \
+    rate = round(sum(r.deposits - r.external - r.withdrawals - r.expenses for r in recent_rows) / len(recent_rows), 2) \
         if recent_rows else 0.0
     rate = max(rate, 0.0)
     bal, proj, start_bal = now.book + now.estimated, [], now.book + now.estimated
@@ -167,20 +206,25 @@ def summary(db: Session, account: SavingsAccount, *, ref: date | None = None, ho
         estimated_interest=now.estimated,
         last_reconciled=interest_moves[-1].date if interest_moves else None,
         total_deposits=round(sum(e.amount for e in real if e.kind == "deposit"), 2),
-        total_withdrawals=round(-sum(e.amount for e in real if e.kind == "withdrawal"), 2),
+        total_withdrawals=round(-sum(e.amount for e in real if e.kind == "withdrawal" and not e.unclassified), 2),
+        total_unclassified=round(-sum(e.amount for e in real if e.kind == "withdrawal" and e.unclassified), 2),
         total_expenses=round(-sum(e.amount for e in real if e.kind == "expense"), 2),
         total_interest=round(sum(e.amount for e in interest_moves) + now.estimated, 2),
+        total_lent=round(-sum(e.amount for e in real if e.kind == "lent"), 2),
+        unclassified=sum(1 for e in real if e.unclassified),
+        statement_until=lines[-1].date if lines else None,
         months=months,
         monthly_rate_contribution=rate,
         projection=proj,
         projection_interest=proj_interest,
         pending=[e for e in evs if e.pending],
-        recent=list(reversed(real))[:30],
+        # Los intereses diarios del extracto se ven en la tabla mensual, no en la lista.
+        recent=[e for e in reversed(real) if not (e.kind == "interest" and e.line_id)][:30],
     )
 
 
 def book_balance(db: Session, account: SavingsAccount, on: date) -> float:
-    real = [e for e in events(db, account) if e.date <= on]
+    real = [e for e in events(db, account) if account.opening_date <= e.date <= on]
     return round(account.opening_balance + sum(e.amount for e in real), 2)
 
 

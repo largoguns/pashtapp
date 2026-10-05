@@ -131,6 +131,22 @@
   });
   document.addEventListener("keydown", (e) => { if (e.key === "Escape") closePickers(); });
 
+  // ---------------------------------------------------------------- Revisión de extracto
+  function syncLineForm(form) {
+    const value = form.querySelector("[data-classification]")?.value || "";
+    $$("[data-show-for]", form).forEach((el) => {
+      const show = el.dataset.showFor.split(" ").includes(value);
+      el.hidden = !show;
+      el.disabled = !show;
+    });
+  }
+  function syncLineForms(root = document) { $$("[data-line-form]", root).forEach(syncLineForm); }
+  document.addEventListener("change", (e) => {
+    if (e.target.matches("[data-classification]")) syncLineForm(e.target.closest("[data-line-form]"));
+  });
+  document.addEventListener("DOMContentLoaded", () => syncLineForms());
+  document.addEventListener("htmx:afterSettle", (e) => syncLineForms(e.detail.elt));
+
   // ---------------------------------------------------------------- HTMX hooks
   document.addEventListener("htmx:afterRequest", (e) => {
     const elt = e.detail.elt;

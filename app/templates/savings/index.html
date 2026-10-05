@@ -1,7 +1,7 @@
 {% extends "layout.html" %}
 {% set active = "savings" %}
 {% block head %}<script src="/static/vendor/chart.umd.min.js?v={{ STATIC_VERSION }}" defer></script>{% endblock %}
-{% macro kind_label(e) %}{{ {"deposit": "Aportación", "withdrawal": "Traspaso a cuenta", "expense": "Gasto con la cuenta", "interest": "Intereses"}[e.kind] }}{% endmacro %}
+{% macro kind_label(e) %}{% if e.unclassified %}{{ "Depósito" if e.kind == "deposit" else "Retirada" }}{% else %}{{ {"deposit": "Dinero de fuera" if e.external else "Aportación", "withdrawal": "Traspaso a cuenta", "expense": "Gasto con la cuenta", "lent": "Préstamo a familiar", "interest": "Intereses"}[e.kind] }}{% endif %}{% if e.line_id %} · extracto{% endif %}{% if e.unclassified %} · <span class="text-amber-300">sin clasificar</span>{% endif %}{% endmacro %}
 {% block content %}
 <div class="space-y-5 pt-6">
   <div class="flex flex-wrap items-center justify-between gap-3">
@@ -14,6 +14,11 @@
     {% endif %}
   </div>
   {% if msg %}<div class="rounded-xl border border-emerald-500/30 bg-emerald-500/10 px-4 py-2 text-sm text-emerald-200">{{ msg }}</div>{% endif %}
+  {% if s.unclassified %}
+  <a href="/savings/{{ account.id }}/review" class="flex items-center gap-3 rounded-xl border border-amber-500/30 bg-amber-500/10 px-4 py-2.5 text-sm text-amber-100">
+    <span>⚠️</span><span class="flex-1">Hay <b>{{ s.unclassified }}</b> movimientos del extracto sin clasificar.</span><span>Revisar ›</span>
+  </a>
+  {% endif %}
 
   <!-- KPIs -->
   <div class="grid grid-cols-2 gap-3 md:grid-cols-4 md:gap-4">
@@ -21,21 +26,39 @@
       <div class="card-title">Saldo estimado hoy</div>
       <div class="mt-2 text-3xl font-bold text-emerald-300">{{ s.balance | eur }}</div>
       <div class="mt-1 text-xs text-slate-500">
-        {% if s.last_reconciled %}Cuadrado el {{ s.last_reconciled | fdate }}{% else %}Sin cuadrar todavía{% endif %}
+        {% if s.statement_until %}Extracto hasta el {{ s.statement_until | fdate }}
+        {% elif s.last_reconciled %}Cuadrado el {{ s.last_reconciled | fdate }}{% else %}Sin cuadrar todavía{% endif %}
         · +{{ s.estimated_interest | eur }} estimados
       </div>
     </div>
     <div class="card p-4"><div class="card-title">Aportado</div><div class="mt-2 text-xl font-bold">{{ s.total_deposits | eur }}</div></div>
     <div class="card p-4"><div class="card-title">Retirado</div>
-      <div class="mt-2 text-xl font-bold">{{ (s.total_withdrawals + s.total_expenses) | eur }}</div>
-      <div class="mt-1 text-xs text-slate-500">{{ s.total_withdrawals | eur }} a cuenta · {{ s.total_expenses | eur }} en gastos</div></div>
+      <div class="mt-2 text-xl font-bold">{{ (s.total_withdrawals + s.total_expenses + s.total_lent + s.total_unclassified) | eur }}</div>
+      <div class="mt-1 text-xs text-slate-500">{{ s.total_withdrawals | eur }} a cuenta · {{ s.total_expenses | eur }} en gastos
+        {% if s.total_lent %}· <span class="text-amber-300">{{ s.total_lent | eur }} prestados</span>{% endif %}
+        {% if s.total_unclassified %}· <a href="/savings/{{ account.id }}/review" class="text-amber-300 underline">{{ s.total_unclassified | eur }} sin clasificar</a>{% endif %}</div></div>
     <div class="card p-4"><div class="card-title">Intereses</div><div class="mt-2 text-xl font-bold text-sky-300">{{ s.total_interest | eur }}</div>
       <div class="mt-1 text-xs text-slate-500">reales + estimados</div></div>
   </div>
 
+  <!-- Extracto -->
+  <section class="card flex flex-wrap items-center gap-4 p-4">
+    <div class="min-w-0 flex-1">
+      <h2 class="font-semibold">📄 Importar extracto de {{ account.name }}</h2>
+      <p class="text-xs text-slate-400">CSV de la cuenta remunerada (en la app: Cuenta → Extracto → Excel/CSV). Es la fuente de verdad: saldo e intereses reales.
+        Puedes subirlo cada mes; lo ya importado no se duplica.</p>
+    </div>
+    <form method="post" action="/savings/{{ account.id }}/statement" enctype="multipart/form-data" class="flex flex-wrap items-center gap-2">
+      <input name="file" type="file" accept=".csv,text/csv" required
+             class="block w-64 text-sm text-slate-300 file:mr-3 file:rounded-lg file:border-0 file:bg-slate-800 file:px-3 file:py-1.5 file:text-slate-100 hover:file:bg-slate-700">
+      <button class="btn-primary">Importar</button>
+      {% if s.statement_until %}<a href="/savings/{{ account.id }}/review?show=all" class="btn-ghost text-xs">Ver clasificación</a>{% endif %}
+    </form>
+  </section>
+
   <!-- Acciones -->
   <div class="grid gap-4 lg:grid-cols-3">
-    <details class="card p-4" open>
+    <details class="card p-4" {% if not s.statement_until %}open{% endif %}>
       <summary class="cursor-pointer font-semibold">⚖️ Cuadrar con saldo real</summary>
       <form method="post" action="/savings/{{ account.id }}/reconcile" class="mt-3 space-y-3">
         <p class="text-xs text-slate-400">Mira el saldo en la app de {{ account.name }}. La diferencia con lo apuntado ({{ s.book | eur }}) se guarda como intereses reales.</p>
@@ -84,7 +107,7 @@
         {% if s.monthly_rate_contribution %}
         Con tu ritmo de <b>{{ s.monthly_rate_contribution | eur }}/mes</b>, en 12 meses tendrías
         <b class="text-emerald-300">{{ s.projection[-1][1] | eur }}</b> (<span class="text-sky-300">{{ s.projection_interest | eur }}</span> de intereses).
-        {% else %}Sin aportaciones recientes: la proyección sólo incluye intereses.{% endif %}
+        {% else %}Últimamente sacas tanto como metes: la proyección sólo incluye intereses.{% endif %}
       </p>
     </div>
     <div class="mt-4 h-72"><canvas id="savings-chart" aria-label="Evolución del ahorro"></canvas></div>

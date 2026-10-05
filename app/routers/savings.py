@@ -2,22 +2,23 @@
 from __future__ import annotations
 
 from dataclasses import asdict
-from datetime import date
+from datetime import date, timedelta
 from urllib.parse import quote
 
-from fastapi import APIRouter, Depends, Form, HTTPException, Request
+from fastapi import APIRouter, Depends, File, Form, HTTPException, Request, UploadFile
 from fastapi.responses import RedirectResponse
 from sqlalchemy import func, or_, select
 from sqlalchemy.orm import Session
 
 from app.database import get_db
 from app.deps import require_user
-from app.models import Category, SavingsAccount, SavingsMovement, Transaction
+from app.models import Category, SavingsAccount, SavingsMovement, SavingsStatementLine, Transaction
 from app.services.periods import current_period
-from app.services.savings import accounts, link_category_history, reconcile, summary
+from app.services.savings import accounts, link_category_history, reconcile, statement_lines, summary
+from app.services.statement_import import StatementError, classify, import_statement, match_candidates, parse_statement
 from app.services.transactions import create_movement, get_or_create_category
 from app.templating import templates
-from app.utils import parse_amount, today
+from app.utils import fmt_eur, parse_amount, today
 
 router = APIRouter(prefix="/savings", dependencies=[Depends(require_user)])
 
@@ -197,3 +198,67 @@ def toggle_link(request: Request, account_id: int, tx_id: int, db: Session = Dep
     tx.savings_account_id = None if tx.savings_account_id == acc.id else acc.id
     db.commit()
     return templates.TemplateResponse(request, "savings/candidate_row.html", {"account": acc, "tx": tx})
+
+
+# --- Extracto ----------------------------------------------------------------------
+
+MAX_STATEMENT_BYTES = 5 * 1024 * 1024
+
+
+@router.post("/{account_id}/statement")
+async def upload_statement(account_id: int, file: UploadFile = File(...), db: Session = Depends(get_db)):
+    acc = _account(db, account_id)
+    data = await file.read(MAX_STATEMENT_BYTES + 1)
+    if len(data) > MAX_STATEMENT_BYTES:
+        return _back(acc.id, "El extracto supera los 5 MB")
+    try:
+        lines = parse_statement(data)
+    except StatementError as exc:
+        return _back(acc.id, f"No se ha podido importar: {exc}")
+    report = import_statement(db, acc, lines)
+    db.commit()
+    msg = (f"Extracto importado hasta el {report.last:%d/%m/%Y} (saldo {fmt_eur(report.last_balance)}): "
+           f"{report.new} líneas nuevas, {report.duplicates} ya importadas, {report.matched} emparejadas"
+           f" y {report.pending} por revisar.")
+    if report.warnings:
+        msg += " Atención: " + "; ".join(report.warnings[:3])
+    return RedirectResponse(f"/savings/{acc.id}/review?msg={quote(msg)}" if report.pending
+                            else f"/savings?acc={acc.id}&msg={quote(msg)}", status_code=303)
+
+
+def _line_ctx(db: Session, acc: SavingsAccount, line: SavingsStatementLine) -> dict:
+    cands = match_candidates(db, acc, line) or match_candidates(db, acc, line, timedelta(days=15), exact=False)[:8]
+    return {"account": acc, "line": line, "candidates": cands,
+            "categories": list(db.scalars(select(Category).order_by(Category.name)))}
+
+
+@router.get("/{account_id}/review")
+def review(request: Request, account_id: int, msg: str | None = None, show: str = "pending",
+           db: Session = Depends(get_db)):
+    acc = _account(db, account_id)
+    lines = [ln for ln in statement_lines(db, acc) if ln.kind != "interest"]
+    if show == "pending":
+        lines = [ln for ln in lines if ln.classification is None]
+    rows = [_line_ctx(db, acc, ln) for ln in lines]
+    return templates.TemplateResponse(request, "savings/review.html", {
+        "account": acc, "rows": rows, "msg": msg, "show": show,
+        "pending": sum(1 for ln in statement_lines(db, acc) if ln.kind != "interest" and ln.classification is None),
+    })
+
+
+@router.post("/{account_id}/lines/{line_id}")
+def classify_line(request: Request, account_id: int, line_id: int, classification: str = Form(...),
+                  transaction_id: str | None = Form(None), label: str | None = Form(None),
+                  category_id: str | None = Form(None), db: Session = Depends(get_db)):
+    acc = _account(db, account_id)
+    line = db.get(SavingsStatementLine, line_id)
+    if line is None or line.account_id != acc.id:
+        raise HTTPException(404)
+    try:
+        classify(db, acc, line, classification,
+                 transaction_id=int(transaction_id) if transaction_id and transaction_id.isdigit() else None,
+                 label=label, category_id=int(category_id) if category_id and category_id.isdigit() else None)
+    except ValueError as exc:
+        raise HTTPException(422, str(exc))
+    db.commit()
+    return templates.TemplateResponse(request, "savings/review_row.html", _line_ctx(db, acc, line))

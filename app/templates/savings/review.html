@@ -1,0 +1,28 @@
+{% extends "layout.html" %}
+{% set active = "savings" %}
+{% block content %}
+<div class="space-y-5 pt-6">
+  <a href="/savings?acc={{ account.id }}" class="btn-ghost -ml-3">‹ Ahorro · {{ account.name }}</a>
+  <div class="flex flex-wrap items-end justify-between gap-3">
+    <div>
+      <h1 class="text-2xl font-bold">Revisar extracto</h1>
+      <p class="text-sm text-slate-400">Indica qué fue cada depósito y retirada que no se ha podido emparejar con Caixabank. Los intereses no necesitan revisión.</p>
+    </div>
+    <nav class="flex gap-1">
+      <a href="?show=pending" class="nav-link {% if show == 'pending' %}active{% endif %}">Pendientes ({{ pending }})</a>
+      <a href="?show=all" class="nav-link {% if show == 'all' %}active{% endif %}">Todas</a>
+    </nav>
+  </div>
+  {% if msg %}<div class="rounded-xl border border-emerald-500/30 bg-emerald-500/10 px-4 py-2 text-sm text-emerald-200">{{ msg }}</div>{% endif %}
+  {% if rows %}
+  <section class="card overflow-x-auto">
+    <table class="tbl">
+      <thead><tr><th>Fecha</th><th class="text-right">Importe</th><th>Clasificación</th></tr></thead>
+      <tbody>{% for r in rows %}{% with line=r.line, candidates=r.candidates, categories=r.categories %}{% include "savings/review_row.html" %}{% endwith %}{% endfor %}</tbody>
+    </table>
+  </section>
+  {% else %}
+  <div class="card p-8 text-center text-sm text-slate-400">No queda nada por revisar. <a class="underline" href="/savings?acc={{ account.id }}">Volver al ahorro</a></div>
+  {% endif %}
+</div>
+{% endblock %}

@@ -211,3 +211,27 @@ class SavingsMovement(Base):
     category_id: Mapped[int | None] = mapped_column(ForeignKey("categories.id", ondelete="SET NULL"), nullable=True)
     notes: Mapped[str | None] = mapped_column(Text, nullable=True)
     created_at: Mapped[datetime] = mapped_column(DateTime, server_default=func.current_timestamp())
+
+
+class SavingsStatementLine(Base):
+    """Línea de un extracto importado de la cuenta de ahorro (fuente de verdad hasta su fecha)."""
+
+    __tablename__ = "savings_statement_lines"
+    __table_args__ = (UniqueConstraint("account_id", "fingerprint"),)
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    account_id: Mapped[int] = mapped_column(ForeignKey("savings_accounts.id", ondelete="CASCADE"), index=True)
+    date: Mapped[date] = mapped_column(Date, nullable=False, index=True)
+    description: Mapped[str] = mapped_column(Text, nullable=False)
+    amount: Mapped[float] = mapped_column(Float, nullable=False)        # + entra / - sale
+    balance: Mapped[float] = mapped_column(Float, nullable=False)       # saldo tras el movimiento
+    kind: Mapped[str] = mapped_column(String(16), nullable=False)       # deposit | withdrawal | interest
+    # deposit: caixabank | external ; withdrawal: caixabank | expense | lent ; None = pendiente de revisar
+    classification: Mapped[str | None] = mapped_column(String(16), nullable=True)
+    transaction_id: Mapped[int | None] = mapped_column(
+        ForeignKey("transactions.id", ondelete="SET NULL"), nullable=True
+    )
+    label: Mapped[str | None] = mapped_column(Text, nullable=True)       # concepto (gasto, a quién se prestó…)
+    category_id: Mapped[int | None] = mapped_column(ForeignKey("categories.id", ondelete="SET NULL"), nullable=True)
+    fingerprint: Mapped[str] = mapped_column(String(64), nullable=False)
+    imported_at: Mapped[datetime] = mapped_column(DateTime, server_default=func.current_timestamp())

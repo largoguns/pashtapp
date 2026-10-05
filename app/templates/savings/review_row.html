@@ -1,0 +1,38 @@
+{% set is_dep = line.kind == "deposit" %}
+<tr id="line-{{ line.id }}" class="{% if line.classification %}opacity-70{% endif %}">
+  <td class="whitespace-nowrap align-top text-slate-400">{{ line.date | fdate }}</td>
+  <td class="whitespace-nowrap text-right align-top font-semibold tabular-nums {% if is_dep %}text-emerald-300{% else %}text-rose-300{% endif %}">{{ line.amount | eur(sign=True) }}</td>
+  <td class="align-top">
+    <form hx-post="/savings/{{ account.id }}/lines/{{ line.id }}" hx-target="#line-{{ line.id }}" hx-swap="outerHTML"
+          class="grid gap-2 sm:grid-cols-[12rem_1fr_auto]" data-line-form>
+      <select name="classification" class="input py-1.5" data-classification required aria-label="Clasificación">
+        <option value="" disabled {% if not line.classification %}selected{% endif %}>— ¿Qué es? —</option>
+        {% if is_dep %}
+        <option value="caixabank" {% if line.classification == 'caixabank' %}selected{% endif %}>Desde Caixabank</option>
+        <option value="external" {% if line.classification == 'external' %}selected{% endif %}>Dinero de fuera / ya ahorrado</option>
+        {% else %}
+        <option value="caixabank" {% if line.classification == 'caixabank' %}selected{% endif %}>A Caixabank</option>
+        <option value="expense" {% if line.classification == 'expense' %}selected{% endif %}>Gasto pagado con Revolut</option>
+        <option value="lent" {% if line.classification == 'lent' %}selected{% endif %}>Préstamo a un familiar</option>
+        {% endif %}
+      </select>
+      <div class="grid gap-2 sm:grid-cols-2">
+        <select name="transaction_id" class="input py-1.5" data-show-for="caixabank" aria-label="Movimiento de Caixabank">
+          <option value="">— Sin vincular a un movimiento —</option>
+          {% for t in candidates %}
+          <option value="{{ t.id }}" {% if t.id == line.transaction_id %}selected{% endif %}>
+            {{ t.date | fdate }} · {{ t.name }} · {{ t.amount | eur }}{% if t.savings_account_id == account.id %} ✓{% endif %}</option>
+          {% endfor %}
+        </select>
+        <input name="label" class="input py-1.5" value="{{ line.label or '' }}" data-show-for="expense lent"
+               placeholder="{{ 'Concepto del gasto' if not is_dep else '' }}" aria-label="Concepto">
+        <select name="category_id" class="input py-1.5" data-show-for="expense" aria-label="Categoría">
+          <option value="">— Categoría —</option>
+          {% for c in categories %}<option value="{{ c.id }}" {% if c.id == line.category_id %}selected{% endif %}>{{ c.name }}</option>{% endfor %}
+        </select>
+      </div>
+      <button class="btn-secondary self-start px-3 py-1.5 text-xs">{{ 'Actualizar' if line.classification else 'Guardar' }}</button>
+    </form>
+    {% if line.classification %}<p class="mt-1 text-[11px] text-emerald-400">✓ Clasificado</p>{% endif %}
+  </td>
+</tr>
