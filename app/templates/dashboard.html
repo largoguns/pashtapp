@@ -1,0 +1,148 @@
+{% extends "layout.html" %}
+{% set active = "home" %}
+{% set qs = "view_y=%d&view_m=%d" | format(year, month) %}
+{% block head %}<script src="/static/vendor/chart.umd.min.js?v={{ STATIC_VERSION }}" defer></script>{% endblock %}
+
+{% macro month_nav(cls="") %}
+<div class="flex items-center gap-1 {{ cls }}">
+  <a href="/?y={{ prev[0] }}&m={{ prev[1] }}" class="rounded-lg px-2 py-1 text-lg text-slate-400 hover:bg-slate-800 hover:text-white" aria-label="Mes anterior">‹</a>
+  <span class="min-w-[9rem] text-center font-semibold">{{ MONTH_NAMES[month - 1] }} {{ year }}</span>
+  <a href="/?y={{ next[0] }}&m={{ next[1] }}" class="rounded-lg px-2 py-1 text-lg text-slate-400 hover:bg-slate-800 hover:text-white" aria-label="Mes siguiente">›</a>
+  {% if not is_current_month %}<a href="/" class="ml-1 rounded-lg px-2 py-1 text-xs text-emerald-400 hover:bg-slate-800">Hoy</a>{% endif %}
+</div>
+{% endmacro %}
+
+{% block header_actions %}
+  {{ month_nav() }}
+  <button class="btn-primary" data-sheet-open>＋ Añadir</button>
+{% endblock %}
+
+{% block main_class %}mx-auto max-w-7xl pb-28 md:px-6 md:pb-12{% endblock %}
+
+{% block content %}
+<!-- ===================== MÓVIL (< 768px) ===================== -->
+<div class="md:hidden">
+  <header class="safe-top sticky top-0 z-20 -mb-1 border-b border-slate-800/60 bg-slate-950/95 backdrop-blur">
+    <div class="flex items-center justify-between px-3 py-2">
+      <div class="flex items-center gap-2">
+        <img src="/static/icons/icon-192.png" alt="" class="h-7 w-7 rounded-lg">
+        <span class="font-bold">PashtAPP</span>
+      </div>
+      {{ month_nav("text-sm") }}
+    </div>
+    {% include "partials/mobile_header.html" %}
+  </header>
+</div>
+
+<!-- KPIs escritorio -->
+<div class="hidden space-y-4 pt-6 md:block">
+  {% if opening_report and opening_report.total %}
+  <div class="rounded-xl border border-sky-500/30 bg-sky-500/10 px-4 py-2 text-sm text-sky-200">
+    Mes abierto: se han añadido {{ opening_report.created_fixed }} gastos/ingresos fijos y {{ opening_report.created_loan }} cuotas de préstamo.
+  </div>
+  {% endif %}
+  {% include "partials/kpis.html" %}
+</div>
+
+<!-- Presupuestos (compartido) -->
+<div class="px-3 pt-4 md:px-0 md:pt-6">{% include "partials/budgets.html" %}</div>
+
+<div class="md:hidden">
+  <div class="space-y-4 px-3 pt-4">
+    {% include "partials/mobile_list.html" %}
+    <div class="flex justify-center gap-2 pb-4 text-xs">
+      <a href="/export/transactions.csv?year={{ year }}&month={{ month }}" class="btn-ghost">⬇ CSV del mes</a>
+      <button class="btn-ghost" hx-post="/months/{{ year }}/{{ month }}/open" hx-swap="none">↻ Reabrir mes</button>
+    </div>
+  </div>
+  <button data-sheet-open aria-label="Añadir gasto"
+          class="fixed bottom-20 right-5 z-30 flex h-16 w-16 items-center justify-center rounded-full bg-emerald-500 text-4xl font-light text-slate-950 shadow-xl shadow-emerald-900/40 active:scale-95">+</button>
+</div>
+
+<!-- ===================== ESCRITORIO (>= 768px) ===================== -->
+<div class="hidden space-y-6 pt-6 md:block">
+
+  <div class="grid grid-cols-1 gap-6 lg:grid-cols-2">
+    <!-- Columna izquierda: fijos -->
+    <div>
+      <div class="mb-3 flex items-center justify-between">
+        <h2 class="text-lg font-semibold">Fijos e ingresos</h2>
+        <button class="btn-ghost text-xs" hx-post="/months/{{ year }}/{{ month }}/open" hx-swap="none"
+                title="Vuelve a aplicar plantillas y cuotas de préstamo sin duplicar">↻ Reabrir mes</button>
+      </div>
+      {% include "partials/fixed_table.html" %}
+    </div>
+    <!-- Columna derecha: variables -->
+    <div>
+      <div class="mb-3 flex items-center justify-between">
+        <h2 class="text-lg font-semibold">Gastos variables</h2>
+        <a href="/export/transactions.csv?year={{ year }}&month={{ month }}" class="btn-ghost text-xs">⬇ CSV del mes</a>
+      </div>
+      <section class="card overflow-hidden">
+        <div class="flex flex-wrap gap-2 border-b border-slate-800 p-3" id="variable-filters">
+          <input type="search" class="input flex-1 py-1.5" placeholder="Buscar concepto, nota…" data-filter="q" aria-label="Buscar">
+          <select class="input w-auto py-1.5" data-filter="cat" aria-label="Categoría">
+            <option value="">Todas las categorías</option>
+            {% for c in categories %}<option value="{{ c.id }}">{{ c.name }}</option>{% endfor %}
+          </select>
+          <select class="input w-auto py-1.5" data-filter="status" aria-label="Estado">
+            <option value="">Todos</option>
+            <option value="pending">Pendientes</option>
+            <option value="settled">Conciliados</option>
+          </select>
+        </div>
+        {% include "partials/variable_table.html" %}
+      </section>
+    </div>
+  </div>
+
+  <!-- Analítica -->
+  <div class="grid grid-cols-1 gap-6 lg:grid-cols-5">
+    <section class="card p-5 lg:col-span-2">
+      <h2 class="card-title">Gasto por categoría · {{ MONTH_NAMES[month - 1] }}</h2>
+      <div class="relative mx-auto mt-4 h-64 max-w-xs"><canvas id="donut" aria-label="Gasto por categoría"></canvas>
+        <div class="pointer-events-none absolute inset-0 flex flex-col items-center justify-center">
+          <span class="text-xs text-slate-400">Total gastos</span>
+          <span class="text-xl font-bold" id="donut-total">{{ summary.expenses_total | eur }}</span>
+        </div>
+      </div>
+      <ul id="donut-legend" class="mt-4 space-y-1 text-sm"></ul>
+    </section>
+    <section class="card p-5 lg:col-span-3">
+      <div class="flex items-center justify-between">
+        <h2 class="card-title">Histórico de luz</h2>
+        <div class="flex rounded-lg bg-slate-800 p-0.5 text-xs" role="group" aria-label="Métrica">
+          <button class="rounded-md bg-slate-700 px-2.5 py-1" data-utility-metric="amount">€</button>
+          <button class="rounded-md px-2.5 py-1 text-slate-400" data-utility-metric="kwh">kWh</button>
+        </div>
+      </div>
+      {% if utility.count %}
+      <div class="mt-4 h-72"><canvas id="utility-chart" aria-label="Histórico de electricidad"></canvas></div>
+      {% else %}
+      <p class="mt-10 text-center text-sm text-slate-500">Sin lecturas. Añádelas en <a class="underline" href="/settings?tab=utility">Ajustes → Luz</a>.</p>
+      {% endif %}
+    </section>
+  </div>
+
+  {% include "partials/matrix.html" %}
+
+  <!-- Préstamos -->
+  <section>
+    <div class="mb-3 flex items-center justify-between">
+      <h2 class="text-lg font-semibold">Préstamos</h2>
+      <a href="/loans" class="btn-ghost text-xs">Gestionar →</a>
+    </div>
+    {% if loans %}
+    <div class="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
+      {% for loan, st in loans %}{% include "partials/loan_card.html" %}{% endfor %}
+    </div>
+    {% else %}
+    <div class="card p-6 text-center text-sm text-slate-500">No hay préstamos activos.</div>
+    {% endif %}
+  </section>
+</div>
+
+<script type="application/json" id="donut-data">{{ donut | tojson }}</script>
+<script type="application/json" id="utility-data">{{ utility | tojson }}</script>
+{% include "partials/sheet.html" %}
+{% endblock %}

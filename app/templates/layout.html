@@ -1,0 +1,44 @@
+{% extends "base.html" %}
+{% set active = active | default("home") %}
+{% block body %}
+<!-- Barra superior escritorio -->
+<header class="sticky top-0 z-30 hidden border-b border-slate-800 bg-slate-950/90 backdrop-blur md:block">
+  <div class="mx-auto flex max-w-7xl items-center gap-6 px-6 py-3">
+    <a href="/" class="flex items-center gap-2">
+      <img src="/static/icons/icon-192.png" alt="" class="h-8 w-8 rounded-lg">
+      <div class="leading-tight">
+        <div class="font-bold tracking-tight">PashtAPP</div>
+        <div class="text-[11px] text-slate-400">Finanzas Domésticas Saeta</div>
+      </div>
+    </a>
+    <nav class="flex gap-1">
+      <a href="/" class="nav-link {% if active == 'home' %}active{% endif %}">Tablero</a>
+      <a href="/loans" class="nav-link {% if active == 'loans' %}active{% endif %}">Préstamos</a>
+      <a href="/settings" class="nav-link {% if active == 'settings' %}active{% endif %}">Ajustes</a>
+    </nav>
+    <div class="ml-auto flex items-center gap-3">
+      {% block header_actions %}{% endblock %}
+      <form method="post" action="/logout"><button class="btn-ghost" title="Cerrar sesión">Salir</button></form>
+    </div>
+  </div>
+</header>
+
+<main class="{% block main_class %}mx-auto max-w-7xl px-4 pb-28 md:px-6 md:pb-12{% endblock %}">
+  {% block content %}{% endblock %}
+</main>
+
+<!-- Barra inferior móvil -->
+<nav class="safe-bottom fixed inset-x-0 bottom-0 z-30 border-t border-slate-800 bg-slate-950/95 backdrop-blur md:hidden">
+  <div class="grid grid-cols-3 text-center text-[11px]">
+    <a href="/" class="flex flex-col items-center gap-0.5 py-2 {% if active == 'home' %}text-emerald-400{% else %}text-slate-400{% endif %}">
+      <span class="text-xl">🏠</span>Inicio
+    </a>
+    <a href="/loans" class="flex flex-col items-center gap-0.5 py-2 {% if active == 'loans' %}text-emerald-400{% else %}text-slate-400{% endif %}">
+      <span class="text-xl">🏦</span>Préstamos
+    </a>
+    <a href="/settings" class="flex flex-col items-center gap-0.5 py-2 {% if active == 'settings' %}text-emerald-400{% else %}text-slate-400{% endif %}">
+      <span class="text-xl">⚙️</span>Ajustes
+    </a>
+  </div>
+</nav>
+{% endblock %}

@@ -1,0 +1,82 @@
+{# Bottom-sheet de entrada rápida: FAB → importe → categoría → Guardar #}
+<div id="sheet-backdrop" class="backdrop fixed inset-0 z-40 bg-black/60" data-sheet-close></div>
+<div id="sheet" role="dialog" aria-modal="true" aria-labelledby="sheet-title"
+     class="sheet safe-bottom fixed inset-x-0 bottom-0 z-50 max-h-[92vh] overflow-y-auto rounded-t-3xl border-t border-slate-800 bg-slate-900 md:inset-x-auto md:bottom-auto md:left-1/2 md:top-1/2 md:w-[34rem] md:rounded-3xl md:border">
+  <form id="quick-form" hx-post="/transactions" hx-swap="none" class="space-y-4 p-4 md:p-6" autocomplete="off">
+    <input type="hidden" name="view_y" value="{{ year }}">
+    <input type="hidden" name="view_m" value="{{ month }}">
+    <div class="mx-auto h-1.5 w-10 rounded-full bg-slate-700 md:hidden"></div>
+    <div class="flex items-center justify-between">
+      <h2 id="sheet-title" class="text-lg font-semibold">Nuevo movimiento</h2>
+      <div class="flex rounded-xl bg-slate-800 p-1 text-sm">
+        <label><input type="radio" name="kind" value="expense" class="peer sr-only" checked>
+          <span class="block cursor-pointer rounded-lg px-3 py-1 text-slate-400 peer-checked:bg-rose-500/20 peer-checked:text-rose-300">Gasto</span></label>
+        <label><input type="radio" name="kind" value="income" class="peer sr-only">
+          <span class="block cursor-pointer rounded-lg px-3 py-1 text-slate-400 peer-checked:bg-emerald-500/20 peer-checked:text-emerald-300">Ingreso</span></label>
+      </div>
+    </div>
+
+    <div class="relative">
+      <input id="quick-amount" name="amount" inputmode="decimal" enterkeyhint="done" required
+             pattern="[0-9]+([.,][0-9]{1,2})?" placeholder="0,00" aria-label="Importe"
+             class="w-full rounded-2xl border border-slate-700 bg-slate-950 py-4 pl-4 pr-12 text-right text-4xl font-bold tracking-tight outline-none focus:border-emerald-500">
+      <span class="pointer-events-none absolute right-4 top-1/2 -translate-y-1/2 text-2xl text-slate-500">€</span>
+    </div>
+
+    <div>
+      <div class="label">Categoría</div>
+      <div class="grid grid-cols-4 gap-2 sm:grid-cols-5">
+        {% for c in categories %}
+        <label class="block">
+          <input type="radio" name="category_id" value="{{ c.id }}" class="peer sr-only" data-fixed="{{ 1 if c.is_fixed_default else 0 }}">
+          <span class="flex h-full flex-col items-center gap-1 rounded-xl border border-slate-800 bg-slate-950 px-1 py-2 text-center text-[11px] leading-tight text-slate-300 transition peer-checked:border-emerald-400 peer-checked:bg-emerald-500/10 peer-checked:text-white">
+            <span class="text-xl">{{ c.icon | icon }}</span><span class="line-clamp-2 break-words">{{ c.name }}</span>
+          </span>
+        </label>
+        {% else %}
+        <p class="col-span-4 text-sm text-slate-500">Crea categorías en <a class="underline" href="/settings?tab=categories">Ajustes</a>.</p>
+        {% endfor %}
+      </div>
+    </div>
+
+    <div>
+      <div class="label">Estado</div>
+      <div class="flex flex-wrap gap-2">
+        {% for value, label in [("settled", "Cobrado ya"), ("pending", "Pendiente"), ("deferred_2d", "+2 días"), ("next_month", "Mes próx."), ("split", "Fraccionar")] %}
+        <label><input type="radio" name="mode" value="{{ value }}" class="peer sr-only" {% if loop.first %}checked{% endif %}>
+          <span class="chip">{{ label }}</span></label>
+        {% endfor %}
+      </div>
+      <div id="split-options" class="mt-3 hidden items-center gap-2 text-sm text-slate-300">
+        En <input name="installments" type="number" min="2" max="60" value="3" inputmode="numeric" class="input w-20 py-1 text-center"> cuotas mensuales
+        <span class="text-slate-500">(la 1ª el mes que viene)</span>
+      </div>
+    </div>
+
+    <details class="group rounded-xl border border-slate-800 px-3 py-2">
+      <summary class="cursor-pointer select-none text-sm text-slate-400">Más opciones</summary>
+      <div class="mt-3 grid gap-3 sm:grid-cols-2">
+        <div class="sm:col-span-2">
+          <label class="label" for="quick-name">Concepto</label>
+          <input id="quick-name" name="name" class="input" placeholder="Por defecto, el nombre de la categoría">
+        </div>
+        <div>
+          <label class="label" for="quick-date">Fecha</label>
+          <input id="quick-date" name="op_date" type="date" class="input" value="{{ default_date.isoformat() }}">
+        </div>
+        <label class="flex items-center gap-2 self-end pb-2 text-sm text-slate-300">
+          <input type="checkbox" name="is_fixed" value="true" class="tick"> Gasto fijo
+        </label>
+        <div class="sm:col-span-2">
+          <label class="label" for="quick-notes">Notas</label>
+          <input id="quick-notes" name="notes" class="input">
+        </div>
+      </div>
+    </details>
+
+    <div class="flex gap-3 pt-1">
+      <button type="button" class="btn-secondary flex-1 py-3" data-sheet-close>Cancelar</button>
+      <button class="btn-primary flex-[2] py-3 text-base">Guardar</button>
+    </div>
+  </form>
+</div>

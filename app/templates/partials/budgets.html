@@ -1,0 +1,27 @@
+<section id="budgets" {% if oob %}hx-swap-oob="true"{% endif %}>
+  {% if budgets %}
+  <div class="card p-4">
+    <div class="mb-3 flex items-center justify-between">
+      <h2 class="card-title">Presupuestos del mes</h2>
+      <a href="/settings?tab=categories" class="text-xs text-slate-400 hover:text-slate-200">Editar límites</a>
+    </div>
+    <div class="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+      {% for b in budgets %}
+      <div>
+        <div class="mb-1 flex items-center justify-between gap-2 text-sm">
+          <span class="truncate">{{ b.category.icon | icon }} {{ b.category.name }}</span>
+          <span class="badge-{{ b.level }}">
+            {% if b.level == 'red' %}⛔{% elif b.level == 'amber' %}⚠️{% else %}✓{% endif %} {{ b.pct | round(0) | int }}%
+          </span>
+        </div>
+        <div class="h-2 overflow-hidden rounded-full bg-slate-800" role="progressbar"
+             aria-valuenow="{{ b.pct }}" aria-valuemin="0" aria-valuemax="100" aria-label="{{ b.category.name }}">
+          <div class="bar-{{ b.level }} h-full rounded-full" style="width: {{ b.bar_pct }}%"></div>
+        </div>
+        <div class="mt-1 text-[11px] text-slate-500">{{ b.spent | eur }} de {{ b.limit | eur }}</div>
+      </div>
+      {% endfor %}
+    </div>
+  </div>
+  {% endif %}
+</section>

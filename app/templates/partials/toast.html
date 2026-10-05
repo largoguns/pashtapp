@@ -1,0 +1,7 @@
+<div id="toast" {% if oob %}hx-swap-oob="true"{% endif %}
+     class="pointer-events-none fixed inset-x-0 bottom-24 z-[70] flex justify-center px-4 md:bottom-8"
+     role="status" aria-live="polite">
+  {% if toast %}
+  <div data-autohide class="pointer-events-auto rounded-xl bg-slate-100 px-4 py-2 text-sm font-medium text-slate-900 shadow-lg">{{ toast }}</div>
+  {% endif %}
+</div>

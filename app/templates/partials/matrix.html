@@ -1,0 +1,55 @@
+{# Matriz interanual categorías × meses. Escala secuencial de un solo tono (azul). #}
+<section class="card overflow-hidden">
+  <div class="flex items-center justify-between px-5 pt-5">
+    <h2 class="card-title">Matriz de categorías · {{ matrix.year }}</h2>
+    <div class="flex items-center gap-2 text-xs text-slate-400">
+      <a href="/?y={{ matrix.year - 1 }}&m={{ month }}" class="hover:text-white">‹ {{ matrix.year - 1 }}</a>
+      <span>·</span>
+      <a href="/?y={{ matrix.year + 1 }}&m={{ month }}" class="hover:text-white">{{ matrix.year + 1 }} ›</a>
+    </div>
+  </div>
+  {% if matrix.rows %}
+  <div class="overflow-x-auto p-3">
+    <table class="w-full text-right text-xs">
+      <thead>
+        <tr class="text-slate-400">
+          <th class="sticky left-0 bg-slate-900 px-2 py-2 text-left font-semibold">Categoría</th>
+          {% for m in matrix.months %}
+          <th class="px-2 py-2 font-semibold {% if loop.index == month %}text-white{% endif %}">{{ m }}</th>
+          {% endfor %}
+          <th class="px-2 py-2 font-semibold">Total</th>
+          <th class="px-2 py-2 font-semibold">Media</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for row in matrix.rows %}
+        <tr class="border-t border-slate-800">
+          <td class="sticky left-0 whitespace-nowrap bg-slate-900 px-2 py-1.5 text-left text-slate-200">
+            <span class="mr-1.5 inline-block h-2 w-2 rounded-full" style="background: {{ row.color }}"></span>{{ row.name }}
+          </td>
+          {% for v in row["values"] %}
+          {% set a = ((v / matrix.peak) * 0.85 + 0.08) if (v > 0 and matrix.peak) else 0 %}
+          <td class="px-1 py-1">
+            <div class="rounded-md px-1.5 py-1 tabular-nums {% if not v %}text-slate-600{% elif v < 0 %}text-emerald-300{% elif a > 0.5 %}text-white{% else %}text-slate-200{% endif %}"
+                 style="{% if v > 0 %}background-color: rgba(57,135,229,{{ '%.2f' | format(a) }}){% endif %}"
+                 title="{{ row.name }} · {{ MONTH_NAMES[loop.index0] }}: {{ v | eur }}">{{ '%.0f' | format(v) if v else '·' }}</div>
+          </td>
+          {% endfor %}
+          <td class="px-2 py-1.5 font-semibold tabular-nums">{{ '%.0f' | format(row.total) }}</td>
+          <td class="px-2 py-1.5 text-slate-400 tabular-nums">{{ '%.0f' | format(row.avg) }}</td>
+        </tr>
+        {% endfor %}
+        <tr class="border-t-2 border-slate-700 font-semibold">
+          <td class="sticky left-0 bg-slate-900 px-2 py-2 text-left">Total</td>
+          {% for t in matrix.month_totals %}<td class="px-2 py-2 tabular-nums">{{ '%.0f' | format(t) if t else '·' }}</td>{% endfor %}
+          <td class="px-2 py-2 tabular-nums">{{ '%.0f' | format(matrix.total) }}</td>
+          <td></td>
+        </tr>
+      </tbody>
+    </table>
+    <p class="mt-2 px-2 text-[11px] text-slate-500">Importes en euros. Intensidad del color proporcional al gasto.</p>
+  </div>
+  {% else %}
+  <p class="p-8 text-center text-sm text-slate-500">Sin gastos registrados en {{ matrix.year }}.</p>
+  {% endif %}
+</section>

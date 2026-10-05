@@ -1,0 +1,208 @@
+{% extends "layout.html" %}
+{% set active = "settings" %}
+{% set tabs = [("general", "General"), ("categories", "Categorías"), ("templates", "Fijos"), ("utility", "Luz"), ("api", "API / Atajos"), ("data", "Datos y copias")] %}
+{% block content %}
+<div class="space-y-5 pt-6">
+  <h1 class="text-2xl font-bold">Ajustes</h1>
+  <nav class="no-scrollbar -mx-4 flex gap-1 overflow-x-auto px-4 md:mx-0 md:px-0">
+    {% for key, label in tabs %}
+    <a href="/settings?tab={{ key }}" class="nav-link whitespace-nowrap {% if tab == key %}active{% endif %}">{{ label }}</a>
+    {% endfor %}
+  </nav>
+  {% if msg %}<div class="rounded-xl border border-emerald-500/30 bg-emerald-500/10 px-4 py-2 text-sm text-emerald-200">{{ msg }}</div>{% endif %}
+
+  {% if tab == "general" %}
+  <section class="card max-w-xl p-5">
+    <h2 class="font-semibold">Saldo inicial configurado</h2>
+    <p class="mt-1 text-sm text-slate-400">Saldo real de la cuenta al empezar el mes indicado. Los meses siguientes arrastran el saldo de cierre efectivo.</p>
+    <form method="post" action="/settings/opening" class="mt-4 grid grid-cols-3 gap-3">
+      <div class="col-span-3 sm:col-span-1"><label class="label">Saldo (€)</label><input name="amount" inputmode="decimal" class="input" value="{{ '%.2f' | format(opening.amount) }}" required></div>
+      <div><label class="label">Mes</label>
+        <select name="month" class="input">{% for n in MONTH_NAMES %}<option value="{{ loop.index }}" {% if loop.index == opening.month %}selected{% endif %}>{{ n }}</option>{% endfor %}</select></div>
+      <div><label class="label">Año</label><input name="year" type="number" class="input" value="{{ opening.year }}" required></div>
+      <div class="col-span-3"><button class="btn-primary">Guardar</button></div>
+    </form>
+  </section>
+
+  {% elif tab == "categories" %}
+  {% set cols = "grid-cols-[minmax(10rem,1fr)_9rem_4rem_9rem_3rem_3rem_7rem]" %}
+  <section class="card overflow-x-auto">
+    <div class="min-w-[52rem]">
+      <div class="grid {{ cols }} items-center gap-2 border-b border-slate-800 px-3 py-2 text-xs font-semibold uppercase tracking-wide text-slate-400">
+        <span>Categoría</span><span>Icono</span><span>Color</span><span class="text-right">Presupuesto mes</span><span>Fija</span><span class="text-center">Usos</span><span></span>
+      </div>
+      {% for c in categories %}
+      <form method="post" action="/settings/categories" class="grid {{ cols }} items-center gap-2 border-b border-slate-800/60 px-3 py-2 last:border-0">
+        <input type="hidden" name="category_id" value="{{ c.id }}">
+        <input name="name" class="input py-1.5" value="{{ c.name }}" required aria-label="Nombre">
+        <div class="flex items-center gap-1">
+          <span class="w-6 text-center text-lg">{{ c.icon | icon }}</span>
+          <input name="icon" class="input py-1.5 text-xs" value="{{ c.icon }}" list="icon-names" aria-label="Icono">
+        </div>
+        <input name="color_hex" type="color" class="h-9 w-12 cursor-pointer rounded-lg border border-slate-700 bg-slate-950" value="{{ c.color_hex }}" aria-label="Color">
+        <input name="monthly_budget_limit" inputmode="decimal" class="input py-1.5 text-right" placeholder="Sin límite" aria-label="Presupuesto mensual"
+               value="{{ '%.2f' | format(c.monthly_budget_limit) if c.monthly_budget_limit else '' }}">
+        <input type="checkbox" name="is_fixed_default" value="true" class="tick" aria-label="Fija" {% if c.is_fixed_default %}checked{% endif %}>
+        <span class="text-center text-xs text-slate-500">{{ usage.get(c.id, 0) }}</span>
+        <div class="flex justify-end gap-1">
+          <button class="btn-secondary px-3 py-1.5 text-xs">Guardar</button>
+          <button form="del-cat-{{ c.id }}" class="btn-ghost px-2 py-1.5 text-xs text-rose-300" aria-label="Eliminar">✕</button>
+        </div>
+      </form>
+      <form id="del-cat-{{ c.id }}" method="post" action="/settings/categories/{{ c.id }}/delete" class="hidden"
+            onsubmit="return confirm('¿Eliminar «{{ c.name }}»? Sus movimientos quedarán sin categoría.')"></form>
+      {% endfor %}
+    </div>
+  </section>
+  <section class="card max-w-3xl p-5">
+    <h2 class="font-semibold">Nueva categoría</h2>
+    <form method="post" action="/settings/categories" class="mt-3 grid gap-3 sm:grid-cols-5">
+      <div class="sm:col-span-2"><label class="label">Nombre</label><input name="name" class="input" required></div>
+      <div><label class="label">Icono</label><input name="icon" class="input" value="tag" list="icon-names"></div>
+      <div><label class="label">Color</label><input name="color_hex" type="color" class="h-10 w-full cursor-pointer rounded-xl border border-slate-700 bg-slate-950" value="#3987e5"></div>
+      <div><label class="label">Presupuesto (€)</label><input name="monthly_budget_limit" inputmode="decimal" class="input" placeholder="Opcional"></div>
+      <label class="flex items-center gap-2 text-sm sm:col-span-3"><input type="checkbox" name="is_fixed_default" value="true" class="tick"> Categoría de gastos fijos</label>
+      <div class="sm:col-span-2 sm:text-right"><button class="btn-primary">Añadir</button></div>
+    </form>
+    <p class="mt-3 text-xs text-slate-500">Icono: nombre de la lista ({{ ICONS.keys() | list | join(', ') }}) o un emoji directamente.</p>
+  </section>
+  <datalist id="icon-names">{% for k in ICONS %}<option value="{{ k }}">{% endfor %}</datalist>
+
+  {% elif tab == "templates" %}
+  <p class="text-sm text-slate-400">Las plantillas activas generan automáticamente los movimientos fijos al abrir cada mes. Las cuotas de préstamo se añaden solas desde su cuadro de amortización.</p>
+  {% set cols = "grid-cols-[minmax(10rem,1fr)_7rem_4rem_10rem_3.5rem_3.5rem_7rem]" %}
+  <section class="card overflow-x-auto">
+    <div class="min-w-[52rem]">
+      <div class="grid {{ cols }} items-center gap-2 border-b border-slate-800 px-3 py-2 text-xs font-semibold uppercase tracking-wide text-slate-400">
+        <span>Concepto</span><span class="text-right">Importe</span><span>Día</span><span>Categoría</span><span>Ingreso</span><span>Activa</span><span></span>
+      </div>
+      {% for t in templates_list %}
+      <form method="post" action="/settings/templates" class="grid {{ cols }} items-center gap-2 border-b border-slate-800/60 px-3 py-2 last:border-0">
+        <input type="hidden" name="template_id" value="{{ t.id }}">
+        <input name="name" class="input py-1.5" value="{{ t.name }}" required aria-label="Concepto">
+        <input name="default_amount" inputmode="decimal" class="input py-1.5 text-right" value="{{ '%.2f' | format(t.default_amount) }}" required aria-label="Importe">
+        <input name="day_of_month" type="number" min="1" max="31" class="input py-1.5" value="{{ t.day_of_month }}" aria-label="Día">
+        <select name="category_id" class="input py-1.5" aria-label="Categoría"><option value="">—</option>
+          {% for c in categories %}<option value="{{ c.id }}" {% if c.id == t.category_id %}selected{% endif %}>{{ c.name }}</option>{% endfor %}</select>
+        <input type="checkbox" name="is_income" value="true" class="tick" aria-label="Ingreso" {% if t.is_income %}checked{% endif %}>
+        <input type="checkbox" name="active" value="true" class="tick" aria-label="Activa" {% if t.active %}checked{% endif %}>
+        <div class="flex justify-end gap-1">
+          <button class="btn-secondary px-3 py-1.5 text-xs">Guardar</button>
+          <button form="del-tpl-{{ t.id }}" class="btn-ghost px-2 py-1.5 text-xs text-rose-300" aria-label="Eliminar">✕</button>
+        </div>
+      </form>
+      <form id="del-tpl-{{ t.id }}" method="post" action="/settings/templates/{{ t.id }}/delete" class="hidden"
+            onsubmit="return confirm('¿Eliminar plantilla?')"></form>
+      {% else %}
+      <p class="py-6 text-center text-sm text-slate-500">Sin plantillas.</p>
+      {% endfor %}
+    </div>
+  </section>
+  <section class="card max-w-3xl p-5">
+    <h2 class="font-semibold">Nueva plantilla fija</h2>
+    <form method="post" action="/settings/templates" class="mt-3 grid gap-3 sm:grid-cols-4">
+      <div class="sm:col-span-2"><label class="label">Concepto</label><input name="name" class="input" placeholder="Hipoteca, Nómina, Internet…" required></div>
+      <div><label class="label">Importe (€)</label><input name="default_amount" inputmode="decimal" class="input" required></div>
+      <div><label class="label">Día del mes</label><input name="day_of_month" type="number" min="1" max="31" value="1" class="input"></div>
+      <div class="sm:col-span-2"><label class="label">Categoría</label>
+        <select name="category_id" class="input"><option value="">—</option>{% for c in categories %}<option value="{{ c.id }}">{{ c.name }}</option>{% endfor %}</select></div>
+      <label class="flex items-center gap-2 self-end pb-2 text-sm"><input type="checkbox" name="is_income" value="true" class="tick"> Es un ingreso</label>
+      <label class="flex items-center gap-2 self-end pb-2 text-sm"><input type="checkbox" name="active" value="true" class="tick" checked> Activa</label>
+      <div class="sm:col-span-4 sm:text-right"><button class="btn-primary">Añadir</button></div>
+    </form>
+  </section>
+
+  {% elif tab == "utility" %}
+  <section class="card max-w-3xl p-5">
+    <h2 class="font-semibold">Añadir / actualizar lectura de luz</h2>
+    <form method="post" action="/settings/utility" class="mt-3 grid gap-3 sm:grid-cols-5">
+      <div><label class="label">Año</label><input name="year" type="number" class="input" value="{{ today.year }}" required></div>
+      <div><label class="label">Mes</label><select name="month" class="input">{% for n in MONTH_NAMES %}<option value="{{ loop.index }}" {% if loop.index == today.month %}selected{% endif %}>{{ n }}</option>{% endfor %}</select></div>
+      <div><label class="label">Importe (€)</label><input name="amount" inputmode="decimal" class="input" required></div>
+      <div><label class="label">kWh</label><input name="kwh" inputmode="decimal" class="input"></div>
+      <div class="self-end"><button class="btn-primary w-full">Guardar</button></div>
+      <div class="sm:col-span-5"><label class="label">Notas</label><input name="notes" class="input"></div>
+    </form>
+  </section>
+  <section class="card overflow-x-auto">
+    <table class="tbl">
+      <thead><tr><th>Periodo</th><th class="text-right">Importe</th><th class="text-right">kWh</th><th class="text-right">€/kWh</th><th>Notas</th><th></th></tr></thead>
+      <tbody>
+        {% for r in readings %}
+        <tr>
+          <td>{{ MONTH_NAMES[r.month - 1] }} {{ r.year }}</td>
+          <td class="text-right">{{ r.amount | eur }}</td>
+          <td class="text-right">{{ '%.0f' | format(r.kwh) if r.kwh else '—' }}</td>
+          <td class="text-right text-slate-400">{{ '%.3f' | format(r.amount / r.kwh) if r.kwh else '—' }}</td>
+          <td class="text-slate-400">{{ r.notes or '' }}</td>
+          <td class="text-right"><form method="post" action="/settings/utility/{{ r.id }}/delete" onsubmit="return confirm('¿Eliminar lectura?')"><button class="btn-ghost px-2 py-1 text-xs text-rose-300">✕</button></form></td>
+        </tr>
+        {% else %}<tr><td colspan="6" class="py-6 text-center text-slate-500">Sin lecturas.</td></tr>{% endfor %}
+      </tbody>
+    </table>
+  </section>
+
+  {% elif tab == "api" %}
+  {% if new_key %}
+  <section class="card border-amber-500/40 p-5">
+    <h2 class="font-semibold text-amber-200">Nuevo token</h2>
+    <div class="mt-2 flex gap-2">
+      <input class="input font-mono text-sm" value="{{ new_key }}" readonly id="new-key" onclick="this.select()">
+      <button class="btn-secondary" type="button" data-copy="#new-key">Copiar</button>
+    </div>
+  </section>
+  {% endif %}
+  <section class="card p-5">
+    <h2 class="font-semibold">API keys para ingesta rápida</h2>
+    <p class="mt-1 text-sm text-slate-400">Úsalas desde Atajos de iOS, Tasker o reenviadores de SMS con la cabecera <code class="text-slate-200">X-API-Key</code>.</p>
+    <form method="post" action="/settings/api-keys" class="mt-4 flex max-w-lg gap-2">
+      <input name="label" class="input" placeholder="Etiqueta (p. ej. iPhone Atajos)" required>
+      <button class="btn-primary whitespace-nowrap">Crear token</button>
+    </form>
+    <ul class="mt-4 divide-y divide-slate-800">
+      {% for k in api_keys %}
+      <li class="flex items-center justify-between py-2 text-sm">
+        <span>{{ k.label }} <span class="text-xs text-slate-500">· creada {{ k.created_at.strftime('%d/%m/%Y') if k.created_at else '' }}</span></span>
+        <form method="post" action="/settings/api-keys/{{ k.id }}/delete" onsubmit="return confirm('¿Revocar esta API key?')"><button class="btn-ghost px-2 py-1 text-xs text-rose-300">Revocar</button></form>
+      </li>
+      {% else %}<li class="py-2 text-sm text-slate-500">Sin API keys.</li>{% endfor %}
+    </ul>
+  </section>
+  <section class="card p-5 text-sm">
+    <h2 class="font-semibold">Ejemplos</h2>
+    <pre class="mt-3 overflow-x-auto rounded-xl bg-slate-950 p-4 text-xs text-slate-300">curl -X POST {{ request.base_url }}api/v1/quick-expense \
+  -H "X-API-Key: pk_…" -H "Content-Type: application/json" \
+  -d '{"amount": 14.50, "concept": "Mercadona", "category": "Comida", "is_settled": false}'
+
+curl -X POST {{ request.base_url }}api/v1/quick-expense \
+  -H "X-API-Key: pk_…" -H "Content-Type: application/json" \
+  -d '{"text": "Pago con tarjeta de 42,30 EUR en REPSOL..."}'</pre>
+  </section>
+
+  {% elif tab == "data" %}
+  <div class="grid gap-4 md:grid-cols-2">
+    <section class="card p-5">
+      <h2 class="font-semibold">Exportar</h2>
+      <div class="mt-3 flex flex-col gap-2">
+        <a class="btn-secondary justify-start" href="/export/transactions.csv?year={{ today.year }}&month={{ today.month }}">⬇ Movimientos del mes actual (CSV)</a>
+        <a class="btn-secondary justify-start" href="/export/transactions.csv?year={{ today.year }}">⬇ Movimientos de {{ today.year }} (CSV)</a>
+        <a class="btn-secondary justify-start" href="/export/transactions.csv">⬇ Todos los movimientos (CSV)</a>
+        <a class="btn-secondary justify-start" href="/export/full-backup.xlsx">⬇ Base de datos completa (Excel)</a>
+      </div>
+    </section>
+    <section class="card p-5">
+      <div class="flex items-center justify-between">
+        <h2 class="font-semibold">Copias de seguridad</h2>
+        <form method="post" action="/backups/run"><button class="btn-primary">Crear copia ahora</button></form>
+      </div>
+      <p class="mt-1 text-xs text-slate-500">El contenedor <code>pashtapp_backup</code> hace una copia diaria a las 03:00 (Europe/Madrid) y conserva 30 días.</p>
+      <ul class="mt-3 divide-y divide-slate-800 text-sm">
+        {% for b in backups %}
+        <li class="flex justify-between py-1.5"><span class="font-mono text-xs">{{ b.name }}</span><span class="text-xs text-slate-400">{{ b.size_kb }} KB · {{ b.modified.strftime('%d/%m %H:%M') }}</span></li>
+        {% else %}<li class="py-2 text-slate-500">No hay copias todavía.</li>{% endfor %}
+      </ul>
+    </section>
+  </div>
+  {% endif %}
+</div>
+{% endblock %}

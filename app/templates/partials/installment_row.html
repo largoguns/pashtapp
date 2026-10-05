@@ -1,0 +1,12 @@
+<tr class="{% if i.is_paid %}text-slate-400{% elif i.due_date < today %}text-amber-200{% endif %}">
+  <td>
+    <input type="checkbox" class="tick" aria-label="Pagada" {% if i.is_paid %}checked{% endif %}
+           hx-patch="/loans/{{ i.loan_id }}/installments/{{ i.id }}/toggle" hx-target="closest tr" hx-swap="outerHTML">
+  </td>
+  <td class="tabular-nums">{{ i.installment_number }}</td>
+  <td class="whitespace-nowrap">{{ i.due_date | fdate }}</td>
+  <td class="text-right tabular-nums">{{ i.payment_amount | eur }}</td>
+  <td class="text-right tabular-nums">{{ i.capital_amount | eur }}</td>
+  <td class="text-right tabular-nums">{{ i.interest_amount | eur }}</td>
+  <td class="text-right tabular-nums">{{ i.remaining_capital | eur }}</td>
+</tr>

@@ -1,0 +1,27 @@
+<!doctype html>
+<html lang="es" class="h-full bg-slate-950">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="theme-color" content="#0f172a">
+  <meta name="color-scheme" content="dark">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="apple-mobile-web-app-title" content="PashtAPP">
+  <title>{% block title %}{{ APP_NAME }} · Finanzas Domésticas Saeta{% endblock %}</title>
+  <link rel="manifest" href="/manifest.json">
+  <link rel="icon" type="image/png" href="/static/icons/icon-192.png">
+  <link rel="apple-touch-icon" href="/static/icons/icon-192.png">
+  <link rel="stylesheet" href="/static/css/app.css?v={{ STATIC_VERSION }}">
+  <script src="/static/vendor/htmx.min.js?v={{ STATIC_VERSION }}" defer></script>
+  {% block head %}{% endblock %}
+  <script src="/static/js/app.js?v={{ STATIC_VERSION }}" defer></script>
+</head>
+<body class="min-h-full bg-slate-950 text-slate-100 antialiased {% block body_class %}{% endblock %}">
+  {% block body %}{% endblock %}
+
+  <div id="modal"></div>
+  {% include "partials/toast.html" %}
+</body>
+</html>

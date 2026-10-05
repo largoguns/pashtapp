@@ -1,0 +1,11 @@
+{# Respuesta a cualquier mutación: refresca todos los bloques del mes vía OOB. #}
+{% set oob = True %}
+{% set qs = "view_y=%d&view_m=%d" | format(year, month) %}
+{% include "partials/mobile_header.html" %}
+{% include "partials/kpis.html" %}
+{% include "partials/budgets.html" %}
+{% include "partials/mobile_list.html" %}
+{% include "partials/fixed_table.html" %}
+{% include "partials/variable_table.html" %}
+<script type="application/json" id="donut-data" hx-swap-oob="true">{{ donut | tojson }}</script>
+{% include "partials/toast.html" %}

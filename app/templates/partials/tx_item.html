@@ -1,0 +1,21 @@
+{# Elemento de lista móvil con toggle táctil de conciliación #}
+<li class="flex items-center gap-3 px-4 py-3">
+  <button type="button" class="flex min-w-0 flex-1 items-center gap-3 text-left"
+          hx-get="/transactions/{{ tx.id }}/edit?{{ qs }}" hx-target="#modal" hx-swap="innerHTML">
+    <span class="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl text-lg"
+          style="background-color: {{ (tx.category.color_hex if tx.category else '#64748b') }}26">{{ (tx.category.icon if tx.category else 'tag') | icon }}</span>
+    <span class="min-w-0 flex-1">
+      <span class="block truncate font-medium {% if tx.is_settled %}text-slate-300{% endif %}">{{ tx.name }}</span>
+      <span class="block truncate text-xs text-slate-500">
+        {{ tx.booking_date.strftime('%d/%m') }}{% if tx.category %} · {{ tx.category.name }}{% endif %}
+        {% if tx.installment_total %} · {{ tx.installment_number }}/{{ tx.installment_total }}{% elif tx.is_fixed %} · Fijo{% endif %}
+      </span>
+    </span>
+    <span class="shrink-0 font-semibold {% if tx.amount > 0 %}text-emerald-300{% endif %}">{{ tx.amount | eur(sign=True) }}</span>
+  </button>
+  <label class="-m-2 p-2">
+    <span class="sr-only">Conciliado</span>
+    <input type="checkbox" class="tick h-7 w-7" {% if tx.is_settled %}checked{% endif %}
+           hx-patch="/transactions/{{ tx.id }}/toggle-settled?{{ qs }}" hx-trigger="change" hx-swap="none">
+  </label>
+</li>

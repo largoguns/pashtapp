@@ -1,0 +1,60 @@
+{% from "partials/modal.html" import modal %}
+{% call modal("Editar movimiento") %}
+<form hx-post="/transactions/{{ tx.id }}" hx-swap="none" class="space-y-3" data-close-on-success>
+  <input type="hidden" name="view_y" value="{{ view_y or '' }}" data-view-y>
+  <input type="hidden" name="view_m" value="{{ view_m or '' }}" data-view-m>
+  <div class="grid grid-cols-2 gap-3">
+    <div class="col-span-2">
+      <label class="label" for="e-name">Concepto</label>
+      <input id="e-name" name="name" class="input" value="{{ tx.name }}" required>
+    </div>
+    <div>
+      <label class="label" for="e-amount">Importe (€)</label>
+      <input id="e-amount" name="amount" class="input text-right" inputmode="decimal" value="{{ '%.2f' | format(tx.amount | abs) }}" required>
+    </div>
+    <div>
+      <label class="label" for="e-kind">Tipo</label>
+      <select id="e-kind" name="kind" class="input">
+        <option value="expense" {% if tx.amount <= 0 %}selected{% endif %}>Gasto</option>
+        <option value="income" {% if tx.amount > 0 %}selected{% endif %}>Ingreso</option>
+      </select>
+    </div>
+    <div>
+      <label class="label" for="e-date">Fecha operación</label>
+      <input id="e-date" name="op_date" type="date" class="input" value="{{ tx.date.isoformat() }}" required>
+    </div>
+    <div>
+      <label class="label" for="e-sdate">Fecha de cargo</label>
+      <input id="e-sdate" name="settlement_date" type="date" class="input" value="{{ tx.settlement_date.isoformat() if tx.settlement_date else '' }}">
+    </div>
+    <div class="col-span-2">
+      <label class="label" for="e-cat">Categoría</label>
+      <select id="e-cat" name="category_id" class="input">
+        <option value="">— Sin categoría —</option>
+        {% for c in categories %}<option value="{{ c.id }}" {% if c.id == tx.category_id %}selected{% endif %}>{{ c.icon | icon }} {{ c.name }}</option>{% endfor %}
+      </select>
+    </div>
+    <div class="col-span-2">
+      <label class="label" for="e-notes">Notas</label>
+      <input id="e-notes" name="notes" class="input" value="{{ tx.notes or '' }}">
+    </div>
+    <label class="flex items-center gap-2 text-sm"><input type="checkbox" name="is_settled" value="true" class="tick" {% if tx.is_settled %}checked{% endif %}> Conciliado / cobrado</label>
+    <label class="flex items-center gap-2 text-sm"><input type="checkbox" name="is_fixed" value="true" class="tick" {% if tx.is_fixed %}checked{% endif %}> Gasto fijo</label>
+  </div>
+  {% if tx.installment_group_id %}
+  <p class="rounded-lg bg-slate-800 px-3 py-2 text-xs text-slate-300">Cuota {{ tx.installment_number }} de {{ tx.installment_total }} de una compra fraccionada.</p>
+  {% endif %}
+  {% if tx.loan_installment_id %}
+  <p class="rounded-lg bg-slate-800 px-3 py-2 text-xs text-slate-300">Vinculado a una cuota de préstamo: conciliarlo la marca como pagada.</p>
+  {% endif %}
+  <div class="flex flex-wrap gap-2 pt-2">
+    <button type="button" class="btn-danger" hx-delete="/transactions/{{ tx.id }}" hx-swap="none" hx-include="[data-view-y],[data-view-m]"
+            hx-confirm="¿Eliminar «{{ tx.name }}»?">Eliminar</button>
+    {% if tx.installment_group_id %}
+    <button type="button" class="btn-danger" hx-delete="/transactions/{{ tx.id }}?scope=group" hx-swap="none" hx-include="[data-view-y],[data-view-m]"
+            hx-confirm="¿Eliminar las {{ tx.installment_total }} cuotas de esta compra?">Eliminar todas las cuotas</button>
+    {% endif %}
+    <button class="btn-primary ml-auto">Guardar</button>
+  </div>
+</form>
+{% endcall %}

@@ -1,0 +1,31 @@
+{% if error %}
+<p class="rounded-xl bg-rose-500/15 px-4 py-3 text-sm text-rose-300">{{ error }}</p>
+{% elif result %}
+{% set r = result %}
+<div class="rounded-2xl border border-emerald-500/30 bg-emerald-500/10 p-4 text-center">
+  <div class="text-xs uppercase tracking-wider text-emerald-300/80">Ahorro neto de intereses</div>
+  <div class="text-3xl font-bold text-emerald-300">{{ r.interest_savings | eur }}</div>
+  <div class="mt-1 text-sm text-slate-300">
+    {% if r.new_remaining_months == 0 %}Cancelación total del préstamo.
+    {% elif r.strategy == 'REDUCE_TERM' %}Terminas <b>{{ r.months_saved }}</b> meses antes, el <b>{{ r.new_end_date | fdate }}</b>.
+    {% else %}Tu cuota baja <b>{{ r.fee_reduction | eur }}</b> al mes.{% endif %}
+  </div>
+</div>
+<table class="tbl mt-4">
+  <thead><tr><th></th><th class="text-right">Actual</th><th class="text-right">Tras amortizar</th></tr></thead>
+  <tbody>
+    <tr><td class="text-slate-400">Capital pendiente</td><td class="text-right">{{ r.outstanding_capital | eur }}</td><td class="text-right">{{ r.new_outstanding_capital | eur }}</td></tr>
+    <tr><td class="text-slate-400">Cuota mensual</td><td class="text-right">{{ r.current_fee | eur }}</td><td class="text-right font-semibold">{{ r.new_fee | eur }}</td></tr>
+    <tr><td class="text-slate-400">Cuotas restantes</td><td class="text-right">{{ r.current_remaining_months }}</td><td class="text-right font-semibold">{{ r.new_remaining_months }}</td></tr>
+    <tr><td class="text-slate-400">Intereses pendientes</td><td class="text-right">{{ r.current_pending_interest | eur }}</td><td class="text-right font-semibold">{{ r.new_pending_interest | eur }}</td></tr>
+    <tr><td class="text-slate-400">Fecha de extinción</td><td class="text-right">{{ r.current_end_date | fdate }}</td><td class="text-right font-semibold">{{ r.new_end_date | fdate or '—' }}</td></tr>
+  </tbody>
+</table>
+{% if r.final_payment %}
+<p class="mt-3 rounded-xl bg-amber-500/10 px-3 py-2 text-xs text-amber-200">
+  ⚠️ Préstamo con cuota final de {{ r.final_payment | eur }} el {{ r.current_end_date | fdate }}.
+  {% if r.new_final_payment %}En este escenario el pago final es de {{ r.new_final_payment | eur }} el {{ r.new_end_date | fdate }}.{% endif %}
+</p>
+{% endif %}
+<p class="mt-3 text-[11px] text-slate-500">Simulación con amortización francesa al {{ loan.annual_interest_rate }} % TIN. No incluye comisiones por amortización anticipada.</p>
+{% endif %}

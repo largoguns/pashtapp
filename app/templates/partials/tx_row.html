@@ -1,0 +1,30 @@
+{# Fila de tabla de escritorio #}
+<tr class="group hover:bg-slate-800/40"
+    data-search="{{ (tx.name ~ ' ' ~ (tx.category.name if tx.category else '') ~ ' ' ~ (tx.notes or '')) | lower }}"
+    data-cat="{{ tx.category_id or '' }}" data-status="{{ 'settled' if tx.is_settled else 'pending' }}">
+  <td class="w-10">
+    <input type="checkbox" class="tick" aria-label="Conciliado" {% if tx.is_settled %}checked{% endif %}
+           hx-patch="/transactions/{{ tx.id }}/toggle-settled?{{ qs }}" hx-trigger="change" hx-swap="none">
+  </td>
+  <td class="w-16 whitespace-nowrap text-slate-400">{{ tx.booking_date.strftime('%d/%m') }}</td>
+  <td class="max-w-0">
+    <div class="truncate font-medium {% if tx.is_settled %}text-slate-300{% endif %}">{{ tx.name }}</div>
+    {% if tx.notes or tx.date != tx.booking_date %}
+    <div class="truncate text-xs text-slate-500">
+      {% if tx.date != tx.booking_date %}Op. {{ tx.date.strftime('%d/%m') }} · {% endif %}{{ tx.notes or '' }}
+    </div>
+    {% endif %}
+  </td>
+  <td class="whitespace-nowrap">
+    {% if tx.category %}
+    <span class="inline-flex items-center gap-1.5 text-xs text-slate-300">
+      <span class="h-2 w-2 rounded-full" style="background: {{ tx.category.color_hex }}"></span>{{ tx.category.name }}
+    </span>
+    {% endif %}
+  </td>
+  <td class="whitespace-nowrap text-right font-semibold {% if tx.amount > 0 %}text-emerald-300{% endif %}">{{ tx.amount | eur(sign=True) }}</td>
+  <td class="w-10 text-right">
+    <button class="rounded-lg px-2 py-1 text-slate-500 opacity-0 hover:bg-slate-700 hover:text-white group-hover:opacity-100 focus:opacity-100"
+            hx-get="/transactions/{{ tx.id }}/edit?{{ qs }}" hx-target="#modal" hx-swap="innerHTML" title="Editar">✎</button>
+  </td>
+</tr>

@@ -1,0 +1,35 @@
+{% from "partials/modal.html" import modal %}
+{% call modal("Simular amortización · " ~ loan.name, wide=True) %}
+<div class="mb-4 grid grid-cols-3 gap-3 text-sm">
+  <div class="rounded-xl bg-slate-800/60 p-3"><div class="text-xs text-slate-400">Capital pendiente</div><div class="font-semibold">{{ status.outstanding | eur }}</div></div>
+  <div class="rounded-xl bg-slate-800/60 p-3"><div class="text-xs text-slate-400">Cuota actual</div><div class="font-semibold">{{ status.current_fee | eur }}</div></div>
+  <div class="rounded-xl bg-slate-800/60 p-3"><div class="text-xs text-slate-400">Cuotas restantes</div><div class="font-semibold">{{ status.remaining_installments }}</div></div>
+</div>
+<form hx-post="/api/v1/loans/{{ loan.id }}/simulate-prepayment" hx-target="#sim-result" hx-swap="innerHTML"
+      hx-trigger="submit, input changed delay:400ms from:#sim-amount, change from:[name=strategy]" class="space-y-4">
+  <div>
+    <label class="label" for="sim-amount">Capital a amortizar (€)</label>
+    <input id="sim-amount" name="prepayment_amount" inputmode="decimal" class="input text-right text-2xl font-bold"
+           placeholder="0,00" required autofocus>
+    <div class="mt-2 flex flex-wrap gap-2 text-xs">
+      {% for v in [1000, 3000, 5000] if v < status.outstanding %}
+      <button type="button" class="chip" data-fill="#sim-amount" data-value="{{ v }}">{{ v }} €</button>
+      {% endfor %}
+      <button type="button" class="chip" data-fill="#sim-amount" data-value="{{ '%.2f' | format(status.outstanding) }}">Todo ({{ status.outstanding | eur }})</button>
+    </div>
+  </div>
+  <fieldset>
+    <legend class="label">Estrategia</legend>
+    <div class="grid grid-cols-2 gap-2">
+      <label><input type="radio" name="strategy" value="REDUCE_TERM" class="peer sr-only" checked>
+        <span class="block cursor-pointer rounded-xl border border-slate-700 p-3 text-sm peer-checked:border-emerald-400 peer-checked:bg-emerald-500/10">
+          <b class="block">Reducir plazo</b><span class="text-xs text-slate-400">Misma cuota, terminas antes</span></span></label>
+      <label><input type="radio" name="strategy" value="REDUCE_FEE" class="peer sr-only">
+        <span class="block cursor-pointer rounded-xl border border-slate-700 p-3 text-sm peer-checked:border-emerald-400 peer-checked:bg-emerald-500/10">
+          <b class="block">Reducir cuota</b><span class="text-xs text-slate-400">Mismo plazo, pagas menos al mes</span></span></label>
+    </div>
+  </fieldset>
+  <button class="btn-primary w-full py-3">Calcular</button>
+</form>
+<div id="sim-result" class="mt-5"></div>
+{% endcall %}

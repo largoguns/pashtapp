@@ -1,0 +1,13 @@
+<div id="variable-table" {% if oob %}hx-swap-oob="true"{% endif %}>
+  <table class="tbl table-fixed" data-filterable>
+    <tbody>
+      {% for tx in variable %}{% include "partials/tx_row.html" %}
+      {% else %}<tr data-empty><td colspan="6" class="py-6 text-center text-slate-500">Sin gastos variables este mes</td></tr>{% endfor %}
+      <tr data-nomatch class="hidden"><td colspan="6" class="py-6 text-center text-slate-500">Ningún movimiento coincide con el filtro</td></tr>
+    </tbody>
+  </table>
+  <div class="flex justify-end gap-4 border-t border-slate-800 px-4 py-3 text-sm text-slate-400">
+    <span>Pagado <b class="text-slate-100">{{ summary.variable_paid | eur }}</b></span>
+    <span>Pendiente <b class="text-amber-300">{{ summary.variable_pending | eur }}</b></span>
+  </div>
+</div>

@@ -1,0 +1,29 @@
+<article class="card p-5">
+  <div class="flex items-start justify-between gap-3">
+    <div>
+      <h3 class="text-lg font-semibold">{{ loan.name }}</h3>
+      <p class="text-xs text-slate-400">{{ loan.annual_interest_rate }} % TIN · {{ loan.term_months }} meses · desde {{ loan.start_date | fdate }}</p>
+    </div>
+    {% if not loan.active %}<span class="badge bg-slate-700 text-slate-300">Inactivo</span>{% endif %}
+  </div>
+  <div class="mt-4">
+    <div class="mb-1 flex justify-between text-xs text-slate-400">
+      <span>Amortizado {{ st.progress_pct }} %</span>
+      <span>{{ st.paid_installments }}/{{ st.paid_installments + st.remaining_installments }} cuotas</span>
+    </div>
+    <div class="h-2.5 overflow-hidden rounded-full bg-slate-800" role="progressbar" aria-valuenow="{{ st.progress_pct }}" aria-valuemin="0" aria-valuemax="100">
+      <div class="h-full rounded-full bg-emerald-500" style="width: {{ st.progress_pct }}%"></div>
+    </div>
+  </div>
+  <dl class="mt-4 grid grid-cols-2 gap-3 text-sm">
+    <div><dt class="text-xs text-slate-400">Capital pendiente</dt><dd class="font-semibold">{{ st.outstanding | eur }}</dd></div>
+    <div><dt class="text-xs text-slate-400">Cuota</dt><dd class="font-semibold">{{ st.current_fee | eur }}</dd></div>
+    <div><dt class="text-xs text-slate-400">Intereses pendientes</dt><dd class="font-semibold text-amber-300">{{ st.pending_interest | eur }}</dd></div>
+    <div><dt class="text-xs text-slate-400">Fin previsto</dt><dd class="font-semibold">{{ st.end_date | fdate }}</dd></div>
+  </dl>
+  <div class="mt-4 flex gap-2">
+    <button class="btn-primary flex-1" hx-get="/loans/{{ loan.id }}/simulator" hx-target="#modal" hx-swap="innerHTML"
+            {% if not st.remaining_installments %}disabled{% endif %}>Simular amortización</button>
+    <a href="/loans/{{ loan.id }}" class="btn-secondary">Cuadro</a>
+  </div>
+</article>

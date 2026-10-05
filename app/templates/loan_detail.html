@@ -1,0 +1,35 @@
+{% extends "layout.html" %}
+{% set active = "loans" %}
+{% block content %}
+<div class="space-y-6 pt-6">
+  <div class="flex flex-wrap items-center gap-3">
+    <a href="/loans" class="btn-ghost">‹ Préstamos</a>
+    <h1 class="text-2xl font-bold">{{ loan.name }}</h1>
+    <div class="ml-auto flex flex-wrap gap-2">
+      <button class="btn-primary" hx-get="/loans/{{ loan.id }}/simulator" hx-target="#modal" hx-swap="innerHTML">Simular amortización</button>
+      <form method="post" action="/loans/{{ loan.id }}/toggle-active"><button class="btn-secondary">{{ 'Desactivar' if loan.active else 'Activar' }}</button></form>
+      {% if not balloon %}
+      <form method="post" action="/loans/{{ loan.id }}/regenerate" onsubmit="return confirm('Se recalculará el cuadro teórico con los datos del préstamo. ¿Continuar?')">
+        <button class="btn-secondary">Recalcular cuadro</button></form>
+      {% endif %}
+      <form method="post" action="/loans/{{ loan.id }}/delete" onsubmit="return confirm('¿Eliminar el préstamo y su cuadro de amortización?')">
+        <button class="btn-danger">Eliminar</button></form>
+    </div>
+  </div>
+
+  <div class="grid grid-cols-2 gap-4 md:grid-cols-5">
+    <div class="card p-4"><div class="card-title">Capital inicial</div><div class="mt-1 text-xl font-bold">{{ loan.initial_capital | eur }}</div></div>
+    <div class="card p-4"><div class="card-title">Pendiente</div><div class="mt-1 text-xl font-bold">{{ status.outstanding | eur }}</div></div>
+    <div class="card p-4"><div class="card-title">Cuota</div><div class="mt-1 text-xl font-bold">{{ status.current_fee | eur }}</div></div>
+    <div class="card p-4"><div class="card-title">Intereses pendientes</div><div class="mt-1 text-xl font-bold text-amber-300">{{ status.pending_interest | eur }}</div></div>
+    <div class="card p-4"><div class="card-title">TIN · plazo</div><div class="mt-1 text-xl font-bold">{{ loan.annual_interest_rate }} % · {{ loan.term_months }}m</div></div>
+  </div>
+
+  <section class="card overflow-x-auto">
+    <table class="tbl">
+      <thead><tr><th>Pagada</th><th>Nº</th><th>Vencimiento</th><th class="text-right">Cuota</th><th class="text-right">Capital</th><th class="text-right">Intereses</th><th class="text-right">Pendiente</th></tr></thead>
+      <tbody>{% for i in loan.installments %}{% include "partials/installment_row.html" %}{% endfor %}</tbody>
+    </table>
+  </section>
+</div>
+{% endblock %}

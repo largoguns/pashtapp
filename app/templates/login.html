@@ -1,0 +1,25 @@
+{% extends "base.html" %}
+{% block title %}Entrar · PashtAPP{% endblock %}
+{% block body %}
+<div class="flex min-h-screen items-center justify-center px-4">
+  <form method="post" action="/login" class="card w-full max-w-sm space-y-5 p-6">
+    <div class="flex items-center gap-3">
+      <img src="/static/icons/icon-192.png" alt="" class="h-12 w-12 rounded-xl">
+      <div>
+        <h1 class="text-xl font-bold">PashtAPP</h1>
+        <p class="text-sm text-slate-400">Finanzas Domésticas Saeta</p>
+      </div>
+    </div>
+    {% if error %}<p class="rounded-lg bg-rose-500/15 px-3 py-2 text-sm text-rose-300">{{ error }}</p>{% endif %}
+    <div>
+      <label class="label" for="username">Usuario</label>
+      <input class="input" id="username" name="username" autocomplete="username" required autofocus value="{{ username or '' }}">
+    </div>
+    <div>
+      <label class="label" for="password">Contraseña</label>
+      <input class="input" id="password" name="password" type="password" autocomplete="current-password" required>
+    </div>
+    <button class="btn-primary w-full py-3">Entrar</button>
+  </form>
+</div>
+{% endblock %}

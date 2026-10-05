@@ -1,0 +1,14 @@
+{# Envoltorio de modal. Uso: {% call modal("Título") %}...{% endcall %} #}
+{% macro modal(title, wide=False) %}
+<div class="fixed inset-0 z-[60] flex items-end justify-center bg-black/60 md:items-center" data-modal>
+  <div class="absolute inset-0" data-modal-close></div>
+  <div role="dialog" aria-modal="true" aria-label="{{ title }}"
+       class="safe-bottom relative max-h-[92vh] w-full overflow-y-auto rounded-t-3xl border border-slate-800 bg-slate-900 p-5 md:rounded-3xl {{ 'md:max-w-2xl' if wide else 'md:max-w-lg' }}">
+    <div class="mb-4 flex items-center justify-between">
+      <h2 class="text-lg font-semibold">{{ title }}</h2>
+      <button type="button" class="rounded-lg px-2 py-1 text-slate-400 hover:bg-slate-800 hover:text-white" data-modal-close aria-label="Cerrar">✕</button>
+    </div>
+    {{ caller() }}
+  </div>
+</div>
+{% endmacro %}

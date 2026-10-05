@@ -1,0 +1,31 @@
+{% extends "layout.html" %}
+{% set active = "loans" %}
+{% block content %}
+<div class="space-y-6 pt-6">
+  <div class="flex items-center justify-between">
+    <h1 class="text-2xl font-bold">Préstamos</h1>
+  </div>
+
+  {% if loans %}
+  <div class="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
+    {% for loan, st in loans %}{% include "partials/loan_card.html" %}{% endfor %}
+  </div>
+  {% else %}
+  <div class="card p-8 text-center text-sm text-slate-400">Todavía no hay préstamos. Créalos abajo o impórtalos con <code>scripts/migrate_excel.py</code>.</div>
+  {% endif %}
+
+  <details class="card p-5" {% if not loans %}open{% endif %}>
+    <summary class="cursor-pointer font-semibold">＋ Nuevo préstamo</summary>
+    <form method="post" action="/loans" class="mt-4 grid gap-4 md:grid-cols-3">
+      <div><label class="label">Nombre</label><input name="name" class="input" placeholder="Coche, Grueso, Placas…" required></div>
+      <div><label class="label">Capital inicial (€)</label><input name="initial_capital" inputmode="decimal" class="input" required></div>
+      <div><label class="label">TIN anual (%)</label><input name="annual_interest_rate" inputmode="decimal" class="input" placeholder="4,5" required></div>
+      <div><label class="label">Plazo (meses)</label><input name="term_months" type="number" min="1" class="input" required></div>
+      <div><label class="label">Fecha de firma</label><input name="start_date" type="date" class="input" value="{{ today.isoformat() }}" required></div>
+      <div><label class="label">Cuota mensual (opcional)</label><input name="monthly_fee" inputmode="decimal" class="input" placeholder="Se calcula"></div>
+      <label class="flex items-center gap-2 text-sm md:col-span-2"><input type="checkbox" name="mark_past_paid" value="true" class="tick" checked> Marcar como pagadas las cuotas ya vencidas</label>
+      <div class="md:text-right"><button class="btn-primary">Crear y generar cuadro</button></div>
+    </form>
+  </details>
+</div>
+{% endblock %}

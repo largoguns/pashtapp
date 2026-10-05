@@ -1,0 +1,31 @@
+<div id="fixed-table" {% if oob %}hx-swap-oob="true"{% endif %} class="space-y-4">
+  <section class="card overflow-hidden">
+    <div class="flex items-center justify-between px-4 pt-4">
+      <h2 class="card-title">Ingresos</h2>
+      <span class="text-sm font-semibold text-emerald-300">{{ summary.income_planned | eur }}</span>
+    </div>
+    <table class="tbl mt-2 table-fixed">
+      <tbody>
+        {% for tx in incomes %}{% include "partials/tx_row.html" %}
+        {% else %}<tr><td colspan="6" class="py-6 text-center text-slate-500">Sin ingresos registrados</td></tr>{% endfor %}
+      </tbody>
+    </table>
+  </section>
+  <section class="card overflow-hidden">
+    <div class="flex items-center justify-between px-4 pt-4">
+      <h2 class="card-title">Gastos fijos</h2>
+      <span class="text-sm text-slate-400">
+        <span class="font-semibold text-slate-100">{{ summary.fixed_paid | eur }}</span> pagado ·
+        {{ summary.fixed_pending | eur }} pendiente
+      </span>
+    </div>
+    <table class="tbl mt-2 table-fixed">
+      <tbody>
+        {% for tx in fixed %}{% include "partials/tx_row.html" %}
+        {% else %}<tr><td colspan="6" class="py-6 text-center text-slate-500">
+          Sin gastos fijos. Crea plantillas en <a class="underline" href="/settings?tab=templates">Ajustes → Fijos</a>.
+        </td></tr>{% endfor %}
+      </tbody>
+    </table>
+  </section>
+</div>

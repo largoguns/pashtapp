@@ -1,0 +1,29 @@
+{% set pending = transactions | rejectattr('is_settled') | list %}
+{% set settled = transactions | selectattr('is_settled') | list %}
+<div id="mobile-list" {% if oob %}hx-swap-oob="true"{% endif %} class="space-y-4">
+  {% if not transactions %}
+  <div class="card px-4 py-10 text-center text-sm text-slate-400">
+    Sin movimientos este mes.<br>Pulsa <b>+</b> para añadir el primero.
+  </div>
+  {% endif %}
+  {% if pending %}
+  <section class="card overflow-hidden">
+    <h2 class="flex items-center justify-between px-4 pt-3 card-title">
+      <span>Pendientes de cargo</span><span class="normal-case tracking-normal text-slate-500">{{ pending | length }}</span>
+    </h2>
+    <ul class="divide-y divide-slate-800">
+      {% for tx in pending | reverse %}{% include "partials/tx_item.html" %}{% endfor %}
+    </ul>
+  </section>
+  {% endif %}
+  {% if settled %}
+  <section class="card overflow-hidden">
+    <h2 class="flex items-center justify-between px-4 pt-3 card-title">
+      <span>Conciliados</span><span class="normal-case tracking-normal text-slate-500">{{ settled | length }}</span>
+    </h2>
+    <ul class="divide-y divide-slate-800">
+      {% for tx in settled | reverse %}{% include "partials/tx_item.html" %}{% endfor %}
+    </ul>
+  </section>
+  {% endif %}
+</div>
