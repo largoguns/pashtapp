@@ -9,6 +9,7 @@ from sqlalchemy.orm import Session
 from app.database import get_db
 from app.deps import require_user
 from app.models import Transaction
+from app.services.savings import accounts as savings_accounts
 from app.services.transactions import PaymentMode, create_movement, set_settled
 from app.templating import templates
 from app.utils import parse_amount
@@ -107,7 +108,8 @@ def edit_form(request: Request, tx_id: int, view_y: str | None = None, view_m: s
     tx = _get_tx(db, tx_id)
     return templates.TemplateResponse(
         request, "partials/tx_edit.html",
-        {"tx": tx, "categories": categories(db), "view_y": view_y, "view_m": view_m},
+        {"tx": tx, "categories": categories(db), "view_y": view_y, "view_m": view_m,
+         "savings_accounts": savings_accounts(db)},
     )
 
 
@@ -121,6 +123,7 @@ def update(
     op_date: str = Form(...),
     settlement_date: str | None = Form(None),
     period: str | None = Form(None),
+    savings_account_id: str | None = Form(None),
     category_id: str | None = Form(None),
     is_fixed: bool = Form(False),
     is_settled: bool = Form(False),
@@ -144,6 +147,8 @@ def update(
             raise HTTPException(422, f"Mes contable no válido: {period}")
         tx.period_year, tx.period_month = py, pm
     tx.category_id = _opt_int(category_id)
+    if savings_account_id is not None:  # el campo sólo aparece si hay cuentas de ahorro
+        tx.savings_account_id = _opt_int(savings_account_id)
     tx.is_fixed = is_fixed
     tx.notes = notes or None
     set_settled(db, tx, is_settled)

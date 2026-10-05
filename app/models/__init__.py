@@ -48,6 +48,10 @@ class Category(Base):
     color_hex: Mapped[str] = mapped_column(Text, default="#64748b", server_default="#64748b")
     is_fixed_default: Mapped[bool] = mapped_column(Boolean, default=False, server_default="0")
     monthly_budget_limit: Mapped[float | None] = mapped_column(Float, nullable=True)
+    # Los gastos de esta categoría son traspasos a esa cuenta de ahorro (p. ej. «Ahorro» → Revolut).
+    savings_account_id: Mapped[int | None] = mapped_column(
+        ForeignKey("savings_accounts.id", ondelete="SET NULL"), nullable=True
+    )
 
 
 class RecurringTemplate(Base):
@@ -88,6 +92,10 @@ class Transaction(Base):
     )
     loan_installment_id: Mapped[int | None] = mapped_column(
         ForeignKey("loan_installments.id", ondelete="SET NULL"), nullable=True
+    )
+    # Traspaso con una cuenta de ahorro: gasto = aportación, ingreso = retirada a la cuenta principal.
+    savings_account_id: Mapped[int | None] = mapped_column(
+        ForeignKey("savings_accounts.id", ondelete="SET NULL"), nullable=True, index=True
     )
 
     category: Mapped[Category | None] = relationship(lazy="joined")
@@ -174,3 +182,32 @@ class MonthOpening(Base):
     year: Mapped[int] = mapped_column(Integer, nullable=False)
     month: Mapped[int] = mapped_column(Integer, nullable=False)
     opened_at: Mapped[datetime] = mapped_column(DateTime, server_default=func.current_timestamp())
+
+
+class SavingsAccount(Base):
+    """Cuenta de ahorro (p. ej. Revolut). Su dinero nunca cuenta como disponible."""
+
+    __tablename__ = "savings_accounts"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    name: Mapped[str] = mapped_column(Text, nullable=False)
+    annual_rate: Mapped[float] = mapped_column(Float, nullable=False, default=0.0)  # TIN en %
+    opening_balance: Mapped[float] = mapped_column(Float, nullable=False, default=0.0)
+    opening_date: Mapped[date] = mapped_column(Date, nullable=False)
+    active: Mapped[bool] = mapped_column(Boolean, default=True, server_default="1")
+
+
+class SavingsMovement(Base):
+    """Movimiento propio de la cuenta de ahorro (los traspasos salen de ``transactions``)."""
+
+    __tablename__ = "savings_movements"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    account_id: Mapped[int] = mapped_column(ForeignKey("savings_accounts.id", ondelete="CASCADE"), index=True)
+    date: Mapped[date] = mapped_column(Date, nullable=False)
+    kind: Mapped[str] = mapped_column(String(16), nullable=False)  # expense | interest
+    amount: Mapped[float] = mapped_column(Float, nullable=False)   # + entra / - sale
+    name: Mapped[str] = mapped_column(Text, nullable=False)
+    category_id: Mapped[int | None] = mapped_column(ForeignKey("categories.id", ondelete="SET NULL"), nullable=True)
+    notes: Mapped[str | None] = mapped_column(Text, nullable=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime, server_default=func.current_timestamp())

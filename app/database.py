@@ -70,3 +70,11 @@ def _upgrade_schema() -> None:
             )
             conn.exec_driver_sql("CREATE INDEX IF NOT EXISTS ix_transactions_period_year ON transactions (period_year)")
             conn.exec_driver_sql("CREATE INDEX IF NOT EXISTS ix_transactions_period_month ON transactions (period_month)")
+        # Columnas nullable añadidas después: basta con crearlas.
+        for table, column, ddl in (
+            ("transactions", "savings_account_id", "INTEGER REFERENCES savings_accounts(id) ON DELETE SET NULL"),
+            ("categories", "savings_account_id", "INTEGER REFERENCES savings_accounts(id) ON DELETE SET NULL"),
+        ):
+            existing = {row[1] for row in conn.exec_driver_sql(f"PRAGMA table_info({table})")}
+            if existing and column not in existing:
+                conn.exec_driver_sql(f"ALTER TABLE {table} ADD COLUMN {column} {ddl}")

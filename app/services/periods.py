@@ -50,6 +50,7 @@ def salary_date(db: Session, year: int, month: int) -> date | None:
         select(func.min(Transaction.date)).where(
             Transaction.period_year == year, Transaction.period_month == month,
             Transaction.is_income.is_(True), Transaction.is_settled.is_(True),
+            Transaction.savings_account_id.is_(None),  # una retirada del ahorro no abre el mes
         )
     )
 

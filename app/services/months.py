@@ -8,7 +8,7 @@ from sqlalchemy.orm import Session
 
 from app.models import Loan, LoanInstallment, MonthOpening, RecurringTemplate, Transaction
 from app.services.periods import estimated_range, get_start_day, template_date
-from app.services.transactions import get_or_create_category
+from app.services.transactions import get_or_create_category, savings_link_for
 
 LOAN_CATEGORY = "Préstamos"
 
@@ -77,6 +77,7 @@ def open_month(db: Session, year: int, month: int, force: bool = False) -> Openi
                 is_fixed=not tpl.is_income,  # el salario es una previsión: su importe varía
                 is_settled=False,
                 template_id=tpl.id,
+                savings_account_id=None if tpl.is_income else savings_link_for(db, tpl.category_id),
             )
         )
         report.created_fixed += 1

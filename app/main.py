@@ -13,7 +13,7 @@ from sqlalchemy import text
 from app.config import get_settings
 from app.database import SessionLocal, engine, init_db
 from app.deps import LoginRequired
-from app.routers import analysis, api, auth, dashboard, export, importer, loans, settings, transactions
+from app.routers import analysis, api, auth, dashboard, export, importer, loans, savings, settings, transactions
 from app.services.auth import ensure_admin
 from app.services.seed import seed_defaults
 from app.templating import templates
@@ -85,7 +85,7 @@ def create_app() -> FastAPI:
             return JSONResponse({"detail": getattr(exc, "detail", "No encontrado")}, status_code=404)
         return templates.TemplateResponse(request, "404.html", {}, status_code=404)
 
-    for r in (auth, dashboard, transactions, loans, analysis, settings, importer, export, api):
+    for r in (auth, dashboard, transactions, loans, savings, analysis, settings, importer, export, api):
         app.include_router(r.router)
     return app
 

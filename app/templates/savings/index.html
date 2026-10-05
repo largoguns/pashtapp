@@ -1,0 +1,173 @@
+{% extends "layout.html" %}
+{% set active = "savings" %}
+{% block head %}<script src="/static/vendor/chart.umd.min.js?v={{ STATIC_VERSION }}" defer></script>{% endblock %}
+{% macro kind_label(e) %}{{ {"deposit": "Aportación", "withdrawal": "Traspaso a cuenta", "expense": "Gasto con la cuenta", "interest": "Intereses"}[e.kind] }}{% endmacro %}
+{% block content %}
+<div class="space-y-5 pt-6">
+  <div class="flex flex-wrap items-center justify-between gap-3">
+    <div>
+      <h1 class="text-2xl font-bold">Ahorro · {{ account.name }}</h1>
+      <p class="text-sm text-slate-400">{{ account.annual_rate }} % TIN · dinero apartado: no cuenta como disponible</p>
+    </div>
+    {% if accounts | length > 1 %}
+    <nav class="flex gap-1">{% for a in accounts %}<a href="/savings?acc={{ a.id }}" class="nav-link {% if a.id == account.id %}active{% endif %}">{{ a.name }}</a>{% endfor %}</nav>
+    {% endif %}
+  </div>
+  {% if msg %}<div class="rounded-xl border border-emerald-500/30 bg-emerald-500/10 px-4 py-2 text-sm text-emerald-200">{{ msg }}</div>{% endif %}
+
+  <!-- KPIs -->
+  <div class="grid grid-cols-2 gap-3 md:grid-cols-4 md:gap-4">
+    <div class="card col-span-2 p-4 ring-1 ring-emerald-500/30 md:col-span-1">
+      <div class="card-title">Saldo estimado hoy</div>
+      <div class="mt-2 text-3xl font-bold text-emerald-300">{{ s.balance | eur }}</div>
+      <div class="mt-1 text-xs text-slate-500">
+        {% if s.last_reconciled %}Cuadrado el {{ s.last_reconciled | fdate }}{% else %}Sin cuadrar todavía{% endif %}
+        · +{{ s.estimated_interest | eur }} estimados
+      </div>
+    </div>
+    <div class="card p-4"><div class="card-title">Aportado</div><div class="mt-2 text-xl font-bold">{{ s.total_deposits | eur }}</div></div>
+    <div class="card p-4"><div class="card-title">Retirado</div>
+      <div class="mt-2 text-xl font-bold">{{ (s.total_withdrawals + s.total_expenses) | eur }}</div>
+      <div class="mt-1 text-xs text-slate-500">{{ s.total_withdrawals | eur }} a cuenta · {{ s.total_expenses | eur }} en gastos</div></div>
+    <div class="card p-4"><div class="card-title">Intereses</div><div class="mt-2 text-xl font-bold text-sky-300">{{ s.total_interest | eur }}</div>
+      <div class="mt-1 text-xs text-slate-500">reales + estimados</div></div>
+  </div>
+
+  <!-- Acciones -->
+  <div class="grid gap-4 lg:grid-cols-3">
+    <details class="card p-4" open>
+      <summary class="cursor-pointer font-semibold">⚖️ Cuadrar con saldo real</summary>
+      <form method="post" action="/savings/{{ account.id }}/reconcile" class="mt-3 space-y-3">
+        <p class="text-xs text-slate-400">Mira el saldo en la app de {{ account.name }}. La diferencia con lo apuntado ({{ s.book | eur }}) se guarda como intereses reales.</p>
+        <div class="flex gap-2">
+          <input name="real_balance" inputmode="decimal" class="input text-right" placeholder="{{ '%.2f' | format(s.balance) }}" required aria-label="Saldo real">
+          <input name="on" type="date" class="input w-40" value="{{ today.isoformat() }}" aria-label="Fecha">
+        </div>
+        <button class="btn-primary w-full">Cuadrar</button>
+      </form>
+    </details>
+    <details class="card p-4">
+      <summary class="cursor-pointer font-semibold">🔁 Traspasar a la cuenta principal</summary>
+      <form method="post" action="/savings/{{ account.id }}/withdraw" class="mt-3 space-y-3">
+        <p class="text-xs text-slate-400">Entra como movimiento cobrado en la cuenta principal (categoría «Traspasos») y resta del ahorro.</p>
+        <div class="flex gap-2">
+          <input name="amount" inputmode="decimal" class="input text-right" placeholder="0,00" required aria-label="Importe">
+          <input name="on" type="date" class="input w-40" value="{{ today.isoformat() }}" aria-label="Fecha">
+        </div>
+        <input name="notes" class="input" placeholder="Motivo (opcional)">
+        <button class="btn-secondary w-full">Traspasar</button>
+      </form>
+    </details>
+    <details class="card p-4">
+      <summary class="cursor-pointer font-semibold">💳 Gasto pagado con {{ account.name }}</summary>
+      <form method="post" action="/savings/{{ account.id }}/expense" class="mt-3 space-y-3">
+        <p class="text-xs text-slate-400">No pasa por la cuenta principal: sólo resta del ahorro.</p>
+        <div class="flex gap-2">
+          <input name="amount" inputmode="decimal" class="input text-right" placeholder="0,00" required aria-label="Importe">
+          <input name="on" type="date" class="input w-40" value="{{ today.isoformat() }}" aria-label="Fecha">
+        </div>
+        <input name="name" class="input" placeholder="Concepto" required>
+        <select name="category_id" class="input" aria-label="Categoría">
+          <option value="">— Categoría (opcional) —</option>
+          {% for c in categories %}<option value="{{ c.id }}">{{ c.name }}</option>{% endfor %}
+        </select>
+        <button class="btn-secondary w-full">Registrar gasto</button>
+      </form>
+    </details>
+  </div>
+
+  <!-- Evolución -->
+  <section class="card p-5">
+    <div class="flex flex-wrap items-baseline justify-between gap-2">
+      <h2 class="card-title">Evolución y proyección</h2>
+      <p class="text-sm text-slate-300">
+        {% if s.monthly_rate_contribution %}
+        Con tu ritmo de <b>{{ s.monthly_rate_contribution | eur }}/mes</b>, en 12 meses tendrías
+        <b class="text-emerald-300">{{ s.projection[-1][1] | eur }}</b> (<span class="text-sky-300">{{ s.projection_interest | eur }}</span> de intereses).
+        {% else %}Sin aportaciones recientes: la proyección sólo incluye intereses.{% endif %}
+      </p>
+    </div>
+    <div class="mt-4 h-72"><canvas id="savings-chart" aria-label="Evolución del ahorro"></canvas></div>
+  </section>
+
+  <div class="grid gap-6 lg:grid-cols-5">
+    <!-- Tabla mensual -->
+    <section class="card overflow-x-auto lg:col-span-3">
+      <h2 class="card-title px-4 pt-4">Mes a mes</h2>
+      <table class="tbl mt-2 text-right">
+        <thead><tr><th class="text-left">Mes</th><th class="text-right">Aportado</th><th class="text-right">Retirado</th><th class="text-right">Intereses</th><th class="text-right">Saldo</th></tr></thead>
+        <tbody>
+          {% for r in months %}
+          <tr>
+            <td class="text-left">{{ r.label }}</td>
+            <td class="tabular-nums {% if r.deposits %}text-emerald-300{% else %}text-slate-600{% endif %}">{{ r.deposits | eur if r.deposits else '·' }}</td>
+            <td class="tabular-nums {% if r.withdrawals or r.expenses %}text-rose-300{% else %}text-slate-600{% endif %}">{{ (r.withdrawals + r.expenses) | eur if (r.withdrawals or r.expenses) else '·' }}</td>
+            <td class="tabular-nums text-sky-300">{{ r.interest | eur }}</td>
+            <td class="font-semibold tabular-nums">{{ r.balance | eur }}</td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </section>
+
+    <!-- Movimientos -->
+    <section class="card p-4 lg:col-span-2">
+      <h2 class="card-title">Movimientos</h2>
+      {% if s.pending %}
+      <p class="mt-3 text-xs font-semibold uppercase tracking-wide text-slate-500">Previstos (sin conciliar en la cuenta principal)</p>
+      <ul class="divide-y divide-slate-800 text-sm">
+        {% for e in s.pending %}
+        <li class="flex justify-between py-1.5 text-slate-400"><span>{{ e.date | fdate }} · {{ e.name }}</span><span class="tabular-nums">{{ e.amount | eur(sign=True) }}</span></li>
+        {% endfor %}
+      </ul>
+      {% endif %}
+      <ul class="mt-2 divide-y divide-slate-800 text-sm">
+        {% for e in s.recent %}
+        <li class="flex items-center gap-2 py-2">
+          <span class="min-w-0 flex-1">
+            <span class="block truncate">{{ e.name }}</span>
+            <span class="block text-xs text-slate-500">{{ e.date | fdate }} · {{ kind_label(e) }}</span>
+          </span>
+          <span class="shrink-0 tabular-nums {% if e.amount >= 0 %}text-emerald-300{% else %}text-rose-300{% endif %}">{{ e.amount | eur(sign=True) }}</span>
+          {% if e.movement_id %}
+          <form method="post" action="/savings/{{ account.id }}/movements/{{ e.movement_id }}/delete" onsubmit="return confirm('¿Eliminar este movimiento?')">
+            <button class="btn-ghost px-1.5 py-0.5 text-xs text-rose-300" aria-label="Eliminar">✕</button></form>
+          {% endif %}
+        </li>
+        {% else %}<li class="py-4 text-center text-slate-500">Sin movimientos todavía.</li>{% endfor %}
+      </ul>
+    </section>
+  </div>
+
+  <!-- Vincular -->
+  <section class="card p-4">
+    <h2 class="font-semibold">Aportaciones desde la cuenta principal</h2>
+    <p class="mt-1 text-sm text-slate-400">
+      {% if linked_categories %}Los gastos de {% for c in linked_categories %}<b>{{ c.name }}</b>{{ ", " if not loop.last }}{% endfor %} se vinculan solos.{% endif %}
+      Busca cualquier otro gasto para vincularlo o desvincularlo. Cuenta como aportación cuando está conciliado.
+    </p>
+    <input type="search" name="q" class="input mt-3" placeholder="Buscar concepto o categoría (p. ej. Residencia)…"
+           hx-get="/savings/{{ account.id }}/candidates" hx-trigger="input changed delay:300ms, search" hx-target="#candidates" hx-swap="outerHTML">
+    <div hx-get="/savings/{{ account.id }}/candidates" hx-trigger="load" hx-swap="outerHTML"><ul id="candidates"></ul></div>
+  </section>
+
+  <details class="card p-4">
+    <summary class="cursor-pointer font-semibold">⚙️ Configurar cuenta</summary>
+    <form method="post" action="/savings/{{ account.id }}/settings" class="mt-3 grid gap-3 sm:grid-cols-4">
+      <div class="sm:col-span-2"><label class="label">Nombre</label><input name="name" class="input" value="{{ account.name }}" required></div>
+      <div><label class="label">TIN (%)</label><input name="annual_rate" inputmode="decimal" class="input" value="{{ account.annual_rate }}"></div>
+      <div><label class="label">Saldo inicial (€)</label><input name="opening_balance" inputmode="decimal" class="input" value="{{ '%.2f' | format(account.opening_balance) }}"></div>
+      <div><label class="label">Fecha de apertura</label><input name="opening_date" type="date" class="input" value="{{ account.opening_date.isoformat() }}" required></div>
+      <div class="sm:col-span-3"><label class="label">Categorías que son aportaciones</label>
+        <div class="flex flex-wrap gap-2">
+          {% for c in categories %}
+          <label><input type="checkbox" name="category_ids" value="{{ c.id }}" class="peer sr-only" {% if c.savings_account_id == account.id %}checked{% endif %}>
+            <span class="chip">{{ c.name }}</span></label>
+          {% endfor %}
+        </div></div>
+      <div class="sm:col-span-4 sm:text-right"><button class="btn-primary">Guardar</button></div>
+    </form>
+  </details>
+</div>
+<script type="application/json" id="savings-data">{{ chart | tojson }}</script>
+{% endblock %}

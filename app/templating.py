@@ -39,5 +39,5 @@ env.globals.update(
     MONTH_NAMES=MONTH_NAMES,
     MONTH_SHORT=MONTH_SHORT,
     ICONS=ICONS,
-    STATIC_VERSION="5",
+    STATIC_VERSION="6",
 )

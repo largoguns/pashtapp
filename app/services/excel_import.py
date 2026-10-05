@@ -51,7 +51,9 @@ FIXED_CATEGORY = {
     "telefono": "Suministros", "glp": "Suministros", "electricidad": "Luz",
     "gasolina": "Gasolina", "comida": "Comida",
     "seguro vida": "Seguros", "seguro coche": "Seguros",
-    "ninos": "Familia", "extra aly": "Familia", "extra papa": "Familia", "impuestos": "Impuestos", "ahorro": "Ahorro",
+    "ninos": "Familia", "extra aly": "Familia", "extra papa": "Familia",
+    "impuestos": "Impuestos", "ahorro": "Ahorro",
+    "residencia": "Ahorro",  # ese dinero se apartó como ahorro (Revolut)
 }
 CATEGORY_ICON = {
     "comida": "🛒", "ocio": "🎬", "trabajo": "💼", "farmacia": "💊", "hogar": "🏠", "regalos": "🎁",
@@ -418,11 +420,12 @@ def import_workbook(db: Session, res: Result, opts: ImportOptions) -> ImportRepo
         loan = is_loan_payment(t.name, res.loans) if t.kind == "fixed" else None
         day = loans_due_day.get(norm(loan.name), 1) if loan else 1
         d = estimated_start(t.year, t.month, opts.start_day) if t.kind == "income" else clamp_day(t.year, t.month, day)
+        cat = loan_cat if loan else category(t.category)
         tx = Transaction(
             period_year=t.year, period_month=t.month,  # la hoja del Excel es el mes contable
             date=d, settlement_date=d, name=t.name, amount=round(t.amount, 2), is_income=t.kind == "income",
-            category_id=(loan_cat if loan else category(t.category)).id, is_fixed=t.kind == "fixed",
-            is_settled=t.settled, notes=t.notes,
+            category_id=cat.id, is_fixed=t.kind == "fixed", is_settled=t.settled, notes=t.notes,
+            savings_account_id=None if t.kind == "income" else cat.savings_account_id,
         )
         if loan:
             inst = installments.get((norm(loan.name), t.year, t.month))

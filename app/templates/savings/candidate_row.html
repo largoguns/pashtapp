@@ -1,0 +1,10 @@
+{% set linked = tx.savings_account_id == account.id %}
+<li class="flex items-center gap-3 py-2 text-sm">
+  <span class="w-20 shrink-0 text-xs text-slate-500">{{ tx.date | fdate }}</span>
+  <span class="min-w-0 flex-1 truncate">{{ tx.name }} <span class="text-xs text-slate-500">· {{ tx.category.name if tx.category else 'Sin categoría' }}{% if not tx.is_settled %} · pendiente{% endif %}</span></span>
+  <span class="shrink-0 tabular-nums">{{ tx.amount | eur }}</span>
+  <button class="{{ 'btn-secondary' if linked else 'btn-ghost' }} shrink-0 px-3 py-1 text-xs"
+          hx-post="/savings/{{ account.id }}/link/{{ tx.id }}" hx-target="closest li" hx-swap="outerHTML">
+    {{ '✓ Vinculado' if linked else 'Vincular' }}
+  </button>
+</li>

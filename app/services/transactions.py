@@ -33,6 +33,14 @@ def get_or_create_category(db: Session, name: str | None, **defaults) -> Categor
     return cat
 
 
+def savings_link_for(db: Session, category_id: int | None) -> int | None:
+    """Cuenta de ahorro a la que van los gastos de la categoría (si está vinculada)."""
+    if not category_id:
+        return None
+    cat = db.get(Category, category_id)
+    return cat.savings_account_id if cat else None
+
+
 def create_movement(
     db: Session,
     *,
@@ -58,7 +66,8 @@ def create_movement(
     total = abs(float(amount))
     sign = 1 if is_income else -1
     name = name.strip() or "Sin concepto"
-    base = dict(name=name, is_income=is_income, category_id=category_id, is_fixed=is_fixed)
+    base = dict(name=name, is_income=is_income, category_id=category_id, is_fixed=is_fixed,
+                savings_account_id=None if is_income else savings_link_for(db, category_id))
 
     if mode is PaymentMode.SPLIT and installments > 1:
         n = int(installments)

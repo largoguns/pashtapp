@@ -1,0 +1,4 @@
+<ul id="candidates" class="divide-y divide-slate-800">
+  {% for tx in txs %}{% include "savings/candidate_row.html" %}
+  {% else %}<li class="py-4 text-center text-sm text-slate-500">{{ 'Sin resultados' if q else 'Aún no hay movimientos vinculados' }}</li>{% endfor %}
+</ul>

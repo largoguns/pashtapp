@@ -10,6 +10,7 @@ from sqlalchemy.orm import Session
 from app.models import Category
 from app.services.analytics import budget_statuses
 from app.services.balances import month_summary, month_transactions_query
+from app.services.savings import accounts as savings_accounts, total_saved
 from app.services.periods import available_periods, current_period, estimated_start, get_start_day, period_bounds
 from app.templating import templates
 from app.utils import shift_month, today
@@ -59,6 +60,8 @@ def month_context(db: Session, year: int, month: int) -> dict:
         "transactions": txs,
         "budgets": budget_statuses(db, year, month),
         "categories": categories(db),
+        "savings_total": total_saved(db),
+        "savings_accounts": savings_accounts(db),
     }
     # ¿Ya toca cobrar el salario del mes siguiente? Aviso para «pasar de hoja», como en el Excel.
     start_day = get_start_day(db)

@@ -1,0 +1,34 @@
+{% extends "layout.html" %}
+{% set active = "savings" %}
+{% block content %}
+<div class="mx-auto max-w-xl space-y-5 pt-6">
+  <h1 class="text-2xl font-bold">Ahorro</h1>
+  <p class="text-sm text-slate-400">
+    Da de alta tu cuenta de ahorro. Los gastos de la categoría vinculada (p. ej. «Ahorro») siguen siendo gastos de tu cuenta
+    principal, pero además se suman aquí como aportaciones. El dinero ahorrado nunca cuenta como disponible.
+  </p>
+  <form method="post" action="/savings" class="card space-y-4 p-5">
+    <div class="grid gap-4 sm:grid-cols-2">
+      <div class="sm:col-span-2"><label class="label" for="s-name">Nombre</label>
+        <input id="s-name" name="name" class="input" value="Revolut" required></div>
+      <div><label class="label" for="s-rate">TIN anual (%)</label>
+        <input id="s-rate" name="annual_rate" inputmode="decimal" class="input" value="1,15" required></div>
+      <div><label class="label" for="s-cat">Categoría de las aportaciones</label>
+        <select id="s-cat" name="category_id" class="input">
+          <option value="">— Ninguna —</option>
+          {% for c in categories %}<option value="{{ c.id }}" {% if default_category and c.id == default_category.id %}selected{% endif %}>{{ c.icon | icon }} {{ c.name }}</option>{% endfor %}
+        </select></div>
+      <div><label class="label" for="s-date">Fecha de apertura</label>
+        <input id="s-date" name="opening_date" type="date" class="input" value="{{ default_date.isoformat() }}" required></div>
+      <div><label class="label" for="s-bal">Saldo en esa fecha (€)</label>
+        <input id="s-bal" name="opening_balance" inputmode="decimal" class="input" value="0"></div>
+    </div>
+    <label class="flex items-start gap-3 text-sm">
+      <input type="checkbox" name="link_history" value="true" class="tick mt-0.5" checked>
+      <span>Vincular como aportaciones los movimientos que ya existen en esa categoría
+        <span class="block text-xs text-slate-500">Después podrás vincular o desvincular otros a mano (p. ej. «Residencia»).</span></span>
+    </label>
+    <button class="btn-primary w-full py-3">Crear cuenta de ahorro</button>
+  </form>
+</div>
+{% endblock %}

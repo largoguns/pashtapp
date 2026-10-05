@@ -39,6 +39,16 @@
         {% for c in categories %}<option value="{{ c.id }}" {% if c.id == tx.category_id %}selected{% endif %}>{{ c.icon | icon }} {{ c.name }}</option>{% endfor %}
       </select>
     </div>
+    {% if savings_accounts %}
+    <div class="col-span-2">
+      <label class="label" for="e-savings">Traspaso con cuenta de ahorro</label>
+      <select id="e-savings" name="savings_account_id" class="input">
+        <option value="">— No —</option>
+        {% for a in savings_accounts %}<option value="{{ a.id }}" {% if tx.savings_account_id == a.id %}selected{% endif %}>
+          {{ a.name }} ({{ 'retirada a esta cuenta' if tx.amount > 0 else 'aportación' }})</option>{% endfor %}
+      </select>
+    </div>
+    {% endif %}
     <div class="col-span-2">
       <label class="label" for="e-notes">Notas</label>
       <input id="e-notes" name="notes" class="input" value="{{ tx.notes or '' }}">

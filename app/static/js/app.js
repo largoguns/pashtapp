@@ -303,6 +303,33 @@
     renderUtility();
   });
 
+  function renderSavings() {
+    const canvas = $("#savings-chart");
+    const data = readJSON("savings-data");
+    if (!canvas || !data || !chartDefaults()) return;
+    new Chart(canvas, {
+      type: "line",
+      data: {
+        labels: data.labels,
+        datasets: [
+          { label: "Saldo", data: data.real, borderColor: SERIES[2], backgroundColor: SERIES[2], borderWidth: 2,
+            pointRadius: 3, pointHoverRadius: 6, tension: 0.2 },
+          { label: "Proyección", data: data.projection, borderColor: SERIES[2], backgroundColor: SERIES[2],
+            borderWidth: 2, borderDash: [5, 4], pointRadius: 0, pointHoverRadius: 5, tension: 0.2 },
+        ],
+      },
+      options: {
+        maintainAspectRatio: false,
+        interaction: { mode: "index", intersect: false },
+        scales: { y: { beginAtZero: true, ticks: { callback: (v) => eur(v) } }, x: { grid: { display: false } } },
+        plugins: {
+          legend: { position: "bottom", labels: { boxWidth: 10, boxHeight: 10, usePointStyle: true } },
+          tooltip: { filter: (i) => i.parsed.y != null, callbacks: { label: (c) => ` ${c.dataset.label}: ${eur(c.parsed.y)}` } },
+        },
+      },
+    });
+  }
+
   // Chart.js se carga con defer: esperar a que todo esté listo.
-  window.addEventListener("load", () => { renderDonut(); renderUtility(); autoHideToast(); });
+  window.addEventListener("load", () => { renderDonut(); renderUtility(); renderSavings(); autoHideToast(); });
 })();
