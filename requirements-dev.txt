@@ -1,0 +1,3 @@
+-r requirements.txt
+pytest>=8.0
+pillow>=10.0   # sólo para scripts/make_icons.py

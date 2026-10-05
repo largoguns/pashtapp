@@ -1,0 +1,15 @@
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+.pytest_cache/
+.tools/
+.env
+data/
+backups/
+*.db
+*.db-shm
+*.db-wal
+*.db.gz
+# Datos financieros personales: nunca al repositorio.
+*.xlsx

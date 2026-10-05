@@ -1,0 +1,13 @@
+.git
+.venv
+venv
+.tools
+.pytest_cache
+__pycache__
+tests
+data
+backups
+.env
+*.db*
+*.xlsx
+DEFINITION.md

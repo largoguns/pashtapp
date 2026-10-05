@@ -1,0 +1,65 @@
+# Portainer ready. Las variables sensibles se leen de .env (ver .env.example).
+services:
+  pashtapp-web:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    image: pashtapp:latest
+    container_name: pashtapp_web
+    restart: unless-stopped
+    ports:
+      - "8080:8000"
+    environment:
+      - APP_NAME=PashtAPP
+      - APP_ENV=production
+      - SECRET_KEY=${SECRET_KEY:?Define SECRET_KEY en .env}
+      - DATABASE_URL=sqlite:////data/pashtapp.db
+      - ADMIN_USERNAME=${ADMIN_USERNAME:-admin}
+      - ADMIN_PASSWORD_HASH=${ADMIN_PASSWORD_HASH:?Define ADMIN_PASSWORD_HASH en .env}
+      - BACKUP_DIR=/backups
+      - COOKIE_SECURE=${COOKIE_SECURE:-false}
+    volumes:
+      - pashtapp_data:/data
+      - pashtapp_backups:/backups
+    networks:
+      - pashtapp_net
+
+  pashtapp-backup:
+    image: alpine:3.20
+    container_name: pashtapp_backup
+    restart: unless-stopped
+    depends_on:
+      - pashtapp-web
+    volumes:
+      # Sin :ro: sqlite3 necesita escribir el fichero -shm para leer una BD en modo WAL.
+      - pashtapp_data:/data
+      - pashtapp_backups:/backups
+    entrypoint: |
+      /bin/sh -c '
+      apk add --no-cache sqlite tzdata
+      cp /usr/share/zoneinfo/Europe/Madrid /etc/localtime
+      echo "Servicio de backup de PashtAPP iniciado (03:00 AM Europe/Madrid)..."
+      while true; do
+        CURRENT_HOUR=$$(date +%H:%M)
+        if [ "$$CURRENT_HOUR" = "03:00" ]; then
+          TIMESTAMP=$$(date +%Y%m%d_%H%M%S)
+          echo "[$$TIMESTAMP] Iniciando backup online de PashtAPP..."
+          sqlite3 /data/pashtapp.db ".backup /backups/pashtapp_$$TIMESTAMP.db"
+          gzip -f /backups/pashtapp_$$TIMESTAMP.db
+          find /backups -name "pashtapp_*.db.gz" -mtime +30 -delete
+          echo "[$$TIMESTAMP] Backup finalizado y comprimido con éxito."
+          sleep 70
+        fi
+        sleep 30
+      done
+      '
+    networks:
+      - pashtapp_net
+
+volumes:
+  pashtapp_data:
+  pashtapp_backups:
+
+networks:
+  pashtapp_net:
+    driver: bridge
