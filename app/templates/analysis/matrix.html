@@ -1,0 +1,11 @@
+{% extends "analysis/base.html" %}
+{% block toolbar %}
+<div class="flex items-center gap-1">
+  <a href="?y={{ matrix.year - 1 }}" class="rounded-lg px-2 py-1 text-lg text-slate-400 hover:bg-slate-800 hover:text-white" aria-label="Año anterior">‹</a>
+  <span class="min-w-[5rem] text-center font-semibold">{{ matrix.year }}</span>
+  <a href="?y={{ matrix.year + 1 }}" class="rounded-lg px-2 py-1 text-lg text-slate-400 hover:bg-slate-800 hover:text-white" aria-label="Año siguiente">›</a>
+</div>
+{% endblock %}
+{% block analysis %}
+{% include "partials/matrix.html" %}
+{% endblock %}

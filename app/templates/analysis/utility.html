@@ -1,0 +1,45 @@
+{% extends "analysis/base.html" %}
+{% block toolbar %}
+<a href="/settings?tab=utility" class="btn-secondary text-xs">＋ Añadir lectura</a>
+{% endblock %}
+{% block analysis %}
+<section class="card p-5">
+  <div class="flex items-center justify-between">
+    <h2 class="card-title">Histórico de luz</h2>
+    <div class="flex rounded-lg bg-slate-800 p-0.5 text-xs" role="group" aria-label="Métrica">
+      <button class="rounded-md bg-slate-700 px-2.5 py-1" data-utility-metric="amount">€</button>
+      <button class="rounded-md px-2.5 py-1 text-slate-400" data-utility-metric="kwh">kWh</button>
+    </div>
+  </div>
+  {% if utility.count %}
+  <div class="mt-4 h-80"><canvas id="utility-chart" aria-label="Histórico de electricidad"></canvas></div>
+  {% else %}
+  <p class="py-16 text-center text-sm text-slate-500">Sin lecturas. Añádelas en <a class="underline" href="/settings?tab=utility">Ajustes → Luz</a>.</p>
+  {% endif %}
+</section>
+
+{% if utility.count %}
+<section class="card overflow-x-auto">
+  <table class="tbl text-right">
+    <thead>
+      <tr><th class="text-left">Año</th>{% for m in utility.months %}<th class="text-right">{{ m }}</th>{% endfor %}<th class="text-right">Total</th><th class="text-right">Media</th></tr>
+    </thead>
+    <tbody>
+      {% for y in utility.years | reverse %}
+      {% set vals = utility.by_year[y].amount | reject("none") | list %}
+      <tr>
+        <td class="text-left font-semibold">{{ y }}</td>
+        {% for v in utility.by_year[y].amount %}
+        <td class="tabular-nums {% if v is none %}text-slate-600{% endif %}">{{ '%.0f' | format(v) if v is not none else '·' }}</td>
+        {% endfor %}
+        <td class="font-semibold tabular-nums">{{ '%.0f' | format(vals | sum) }}</td>
+        <td class="tabular-nums text-slate-400">{{ '%.0f' | format((vals | sum) / (vals | length)) if vals else '—' }}</td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+  <p class="px-4 pb-4 text-left text-[11px] text-slate-500">Importes en euros por mes natural de la factura.</p>
+</section>
+{% endif %}
+<script type="application/json" id="utility-data">{{ utility | tojson }}</script>
+{% endblock %}

@@ -1,7 +1,6 @@
 {% extends "layout.html" %}
 {% set active = "home" %}
 {% set qs = "view_y=%d&view_m=%d" | format(year, month) %}
-{% block head %}<script src="/static/vendor/chart.umd.min.js?v={{ STATIC_VERSION }}" defer></script>{% endblock %}
 
 {% macro month_nav(cls="") %}
 <div class="flex items-center gap-1 {{ cls }}">
@@ -111,54 +110,7 @@
       </section>
     </div>
   </div>
-
-  <!-- Analítica -->
-  <div class="grid grid-cols-1 gap-6 lg:grid-cols-5">
-    <section class="card p-5 lg:col-span-2">
-      <h2 class="card-title">Gasto por categoría · {{ MONTH_NAMES[month - 1] }}</h2>
-      <div class="relative mx-auto mt-4 h-64 max-w-xs"><canvas id="donut" aria-label="Gasto por categoría"></canvas>
-        <div class="pointer-events-none absolute inset-0 flex flex-col items-center justify-center">
-          <span class="text-xs text-slate-400">Total gastos</span>
-          <span class="text-xl font-bold" id="donut-total">{{ summary.expenses_total | eur }}</span>
-        </div>
-      </div>
-      <ul id="donut-legend" class="mt-4 space-y-1 text-sm"></ul>
-    </section>
-    <section class="card p-5 lg:col-span-3">
-      <div class="flex items-center justify-between">
-        <h2 class="card-title">Histórico de luz</h2>
-        <div class="flex rounded-lg bg-slate-800 p-0.5 text-xs" role="group" aria-label="Métrica">
-          <button class="rounded-md bg-slate-700 px-2.5 py-1" data-utility-metric="amount">€</button>
-          <button class="rounded-md px-2.5 py-1 text-slate-400" data-utility-metric="kwh">kWh</button>
-        </div>
-      </div>
-      {% if utility.count %}
-      <div class="mt-4 h-72"><canvas id="utility-chart" aria-label="Histórico de electricidad"></canvas></div>
-      {% else %}
-      <p class="mt-10 text-center text-sm text-slate-500">Sin lecturas. Añádelas en <a class="underline" href="/settings?tab=utility">Ajustes → Luz</a>.</p>
-      {% endif %}
-    </section>
-  </div>
-
-  {% include "partials/matrix.html" %}
-
-  <!-- Préstamos -->
-  <section>
-    <div class="mb-3 flex items-center justify-between">
-      <h2 class="text-lg font-semibold">Préstamos</h2>
-      <a href="/loans" class="btn-ghost text-xs">Gestionar →</a>
-    </div>
-    {% if loans %}
-    <div class="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
-      {% for loan, st in loans %}{% include "partials/loan_card.html" %}{% endfor %}
-    </div>
-    {% else %}
-    <div class="card p-6 text-center text-sm text-slate-500">No hay préstamos activos.</div>
-    {% endif %}
-  </section>
 </div>
 
-<script type="application/json" id="donut-data">{{ donut | tojson }}</script>
-<script type="application/json" id="utility-data">{{ utility | tojson }}</script>
 {% include "partials/sheet.html" %}
 {% endblock %}

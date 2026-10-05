@@ -1,0 +1,18 @@
+{% extends "layout.html" %}
+{% set active = "analysis" %}
+{% set tabs = [("categories", "Por categoría"), ("matrix", "Matriz anual"), ("utility", "Luz")] %}
+{% block head %}<script src="/static/vendor/chart.umd.min.js?v={{ STATIC_VERSION }}" defer></script>{% endblock %}
+{% block content %}
+<div class="space-y-5 pt-6">
+  <div class="flex flex-wrap items-center justify-between gap-3">
+    <h1 class="text-2xl font-bold">Análisis</h1>
+    {% block toolbar %}{% endblock %}
+  </div>
+  <nav class="no-scrollbar -mx-4 flex gap-1 overflow-x-auto px-4 md:mx-0 md:px-0">
+    {% for key, label in tabs %}
+    <a href="/analysis/{{ key }}" class="nav-link whitespace-nowrap {% if tab == key %}active{% endif %}">{{ label }}</a>
+    {% endfor %}
+  </nav>
+  {% block analysis %}{% endblock %}
+</div>
+{% endblock %}

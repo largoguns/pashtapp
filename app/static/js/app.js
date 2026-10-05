@@ -235,7 +235,7 @@
         x: { grid: { display: false } },
       },
       plugins: {
-        legend: { position: "bottom", labels: { boxWidth: 10, boxHeight: 10, usePointStyle: true } },
+        legend: { display: years.length > 1, position: "bottom", labels: { boxWidth: 10, boxHeight: 10, usePointStyle: true } },
         tooltip: { callbacks: { label: (c) => ` ${c.dataset.label}: ${c.parsed.y == null ? "—" : (unit === "€" ? eur(c.parsed.y) : `${c.parsed.y} kWh`)}` } },
       },
     };

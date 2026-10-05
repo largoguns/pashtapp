@@ -14,6 +14,7 @@
     <nav class="flex gap-1">
       <a href="/" class="nav-link {% if active == 'home' %}active{% endif %}">Tablero</a>
       <a href="/loans" class="nav-link {% if active == 'loans' %}active{% endif %}">Préstamos</a>
+      <a href="/analysis" class="nav-link {% if active == 'analysis' %}active{% endif %}">Análisis</a>
       <a href="/settings" class="nav-link {% if active == 'settings' %}active{% endif %}">Ajustes</a>
     </nav>
     <div class="ml-auto flex items-center gap-3">
@@ -29,12 +30,15 @@
 
 <!-- Barra inferior móvil -->
 <nav class="safe-bottom fixed inset-x-0 bottom-0 z-30 border-t border-slate-800 bg-slate-950/95 backdrop-blur md:hidden">
-  <div class="grid grid-cols-3 text-center text-[11px]">
+  <div class="grid grid-cols-4 text-center text-[11px]">
     <a href="/" class="flex flex-col items-center gap-0.5 py-2 {% if active == 'home' %}text-emerald-400{% else %}text-slate-400{% endif %}">
       <span class="text-xl">🏠</span>Inicio
     </a>
     <a href="/loans" class="flex flex-col items-center gap-0.5 py-2 {% if active == 'loans' %}text-emerald-400{% else %}text-slate-400{% endif %}">
       <span class="text-xl">🏦</span>Préstamos
+    </a>
+    <a href="/analysis" class="flex flex-col items-center gap-0.5 py-2 {% if active == 'analysis' %}text-emerald-400{% else %}text-slate-400{% endif %}">
+      <span class="text-xl">📊</span>Análisis
     </a>
     <a href="/settings" class="flex flex-col items-center gap-0.5 py-2 {% if active == 'settings' %}text-emerald-400{% else %}text-slate-400{% endif %}">
       <span class="text-xl">⚙️</span>Ajustes

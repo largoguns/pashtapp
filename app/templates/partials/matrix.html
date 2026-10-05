@@ -1,12 +1,7 @@
 {# Matriz interanual categorías × meses. Escala secuencial de un solo tono (azul). #}
 <section class="card overflow-hidden">
   <div class="flex items-center justify-between px-5 pt-5">
-    <h2 class="card-title">Matriz de categorías · {{ matrix.year }}</h2>
-    <div class="flex items-center gap-2 text-xs text-slate-400">
-      <a href="/?y={{ matrix.year - 1 }}&m={{ month }}" class="hover:text-white">‹ {{ matrix.year - 1 }}</a>
-      <span>·</span>
-      <a href="/?y={{ matrix.year + 1 }}&m={{ month }}" class="hover:text-white">{{ matrix.year + 1 }} ›</a>
-    </div>
+    <h2 class="card-title">Gasto por categoría y mes contable · {{ matrix.year }}</h2>
   </div>
   {% if matrix.rows %}
   <div class="overflow-x-auto p-3">

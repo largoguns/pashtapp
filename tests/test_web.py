@@ -14,7 +14,8 @@ def test_login_required(anon):
 
 
 def test_pages_render(client):
-    for url in ["/", "/?y=2026&m=2", "/loans", "/settings", "/settings?tab=categories", "/settings?tab=templates",
+    for url in ["/", "/?y=2026&m=2", "/loans", "/analysis/categories", "/analysis/categories?y=2026&m=3",
+                "/analysis/matrix", "/analysis/matrix?y=2025", "/analysis/utility", "/settings", "/settings?tab=categories", "/settings?tab=templates",
                 "/settings?tab=utility", "/settings?tab=api", "/settings?tab=data", "/manifest.json", "/sw.js", "/healthz"]:
         assert client.get(url).status_code == 200, url
 
@@ -123,3 +124,21 @@ def test_schema_upgrade_backfills_period(tmp_path, monkeypatch):
     database._upgrade_schema()
     con = sqlite3.connect(path)
     assert con.execute("SELECT period_year, period_month FROM transactions").fetchone() == (2026, 3)
+
+
+def test_analysis_pages_show_data(client, db):
+    from app.models import UtilityReading
+
+    cat = db.query(Category).filter_by(name="Comida").one()
+    cat.monthly_budget_limit = 100
+    db.add(Transaction(date=date(2026, 3, 2), period_year=2026, period_month=3, name="Súper", amount=-85,
+                       category_id=cat.id))
+    db.add(UtilityReading(year=2026, month=3, amount=55.5))
+    db.commit()
+    r = client.get("/analysis/categories?y=2026&m=3")
+    assert "Comida" in r.text and "85,00 €" in r.text and "badge-amber" in r.text
+    assert "Comida" in client.get("/analysis/matrix?y=2026").text
+    assert "56" in client.get("/analysis/utility").text
+    # El tablero ya no incluye analítica ni préstamos.
+    home = client.get("/?y=2026&m=3").text
+    assert 'id="donut"' not in home and "Simular amortización" not in home

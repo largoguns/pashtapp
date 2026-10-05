@@ -1,0 +1,79 @@
+{% extends "analysis/base.html" %}
+{% block toolbar %}
+<div class="flex items-center gap-1">
+  <a href="?y={{ prev[0] }}&m={{ prev[1] }}" class="rounded-lg px-2 py-1 text-lg text-slate-400 hover:bg-slate-800 hover:text-white" aria-label="Mes anterior">‹</a>
+  <span class="min-w-[9rem] text-center leading-tight">
+    <span class="block font-semibold">{{ MONTH_NAMES[month - 1] }} {{ year }}</span>
+    {% if period_start.day != 1 or period_end.month != month %}
+    <span class="block text-[10px] text-slate-500">{{ period_start.strftime('%d/%m') }} – {{ period_end.strftime('%d/%m') }}</span>
+    {% endif %}
+  </span>
+  <a href="?y={{ next[0] }}&m={{ next[1] }}" class="rounded-lg px-2 py-1 text-lg text-slate-400 hover:bg-slate-800 hover:text-white" aria-label="Mes siguiente">›</a>
+  {% if not is_current_month %}<a href="/analysis/categories" class="ml-1 rounded-lg px-2 py-1 text-xs text-emerald-400 hover:bg-slate-800">Hoy</a>{% endif %}
+</div>
+{% endblock %}
+
+{% block analysis %}
+{% if rows %}
+<div class="grid gap-6 lg:grid-cols-5">
+  <section class="card p-5 lg:col-span-2">
+    <h2 class="card-title">Reparto del gasto</h2>
+    <div class="relative mx-auto mt-4 h-72 max-w-xs"><canvas id="donut" aria-label="Gasto por categoría"></canvas>
+      <div class="pointer-events-none absolute inset-0 flex flex-col items-center justify-center">
+        <span class="text-xs text-slate-400">Total gastos</span>
+        <span class="text-xl font-bold" id="donut-total">{{ total | eur }}</span>
+      </div>
+    </div>
+    <ul id="donut-legend" class="mt-4 space-y-1 text-sm"></ul>
+  </section>
+
+  <section class="card overflow-x-auto lg:col-span-3">
+    <table class="tbl">
+      <thead>
+        <tr><th>Categoría</th><th class="text-right">Gasto</th><th class="text-right">%</th>
+            <th class="text-right">{{ MONTH_SHORT[prev[1] - 1] }}</th><th class="text-right">Δ</th><th class="w-40">Presupuesto</th></tr>
+      </thead>
+      <tbody>
+        {% for r in rows %}
+        <tr>
+          <td class="whitespace-nowrap">
+            <span class="mr-1.5 inline-block h-2.5 w-2.5 rounded-full" style="background: {{ r.color }}"></span>{{ r.name }}
+          </td>
+          <td class="text-right font-semibold tabular-nums {% if r.spent < 0 %}text-emerald-300{% endif %}">{{ r.spent | eur }}</td>
+          <td class="text-right tabular-nums text-slate-400">{{ r.share }}%</td>
+          <td class="text-right tabular-nums text-slate-400">{{ r.prev | eur }}</td>
+          <td class="whitespace-nowrap text-right tabular-nums {% if r.delta > 0 %}text-rose-300{% elif r.delta < 0 %}text-emerald-300{% else %}text-slate-500{% endif %}">
+            {% if r.delta > 0 %}▲{% elif r.delta < 0 %}▼{% endif %} {{ r.delta | abs | eur }}
+          </td>
+          <td>
+            {% if r.limit %}
+            {% set level = 'red' if r.budget_pct > 100 else ('amber' if r.budget_pct >= 80 else 'green') %}
+            <div class="flex items-center gap-2">
+              <div class="h-1.5 flex-1 overflow-hidden rounded-full bg-slate-800">
+                <div class="bar-{{ level }} h-full rounded-full" style="width: {{ [r.budget_pct, 100] | min }}%"></div>
+              </div>
+              <span class="badge-{{ level }}">{{ r.budget_pct | round(0) | int }}%</span>
+            </div>
+            {% else %}<span class="text-xs text-slate-600">—</span>{% endif %}
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+      <tfoot>
+        <tr class="font-semibold">
+          <td>Total</td><td class="text-right tabular-nums">{{ total | eur }}</td><td></td>
+          <td class="text-right tabular-nums text-slate-400">{{ prev_total | eur }}</td>
+          {% set d = total - prev_total %}
+          <td class="text-right tabular-nums {% if d > 0 %}text-rose-300{% elif d < 0 %}text-emerald-300{% endif %}">{% if d > 0 %}▲{% elif d < 0 %}▼{% endif %} {{ d | abs | eur }}</td>
+          <td></td>
+        </tr>
+      </tfoot>
+    </table>
+    <p class="px-4 pb-4 text-[11px] text-slate-500">Gasto neto del mes contable: las devoluciones restan de su categoría. Los límites se editan en <a class="underline" href="/settings?tab=categories">Ajustes → Categorías</a>.</p>
+  </section>
+</div>
+<script type="application/json" id="donut-data">{{ donut | tojson }}</script>
+{% else %}
+<div class="card p-10 text-center text-sm text-slate-500">Sin gastos en {{ MONTH_NAMES[month - 1] }} {{ year }}.</div>
+{% endif %}
+{% endblock %}
